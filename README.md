@@ -4,6 +4,6 @@ The classification problem is commonly encountered when a finite sample of data 
 
 Academic Citation
 -----------
-### [Release 0.1](https://github.com/adaviding/Morpe/releases/tag/0.1) [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.13235.svg)](http://dx.doi.org/10.5281/zenodo.13235).
+### [Release 0.1](https://github.com/adaviding/Morpe/releases/tag/0.1) [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.13235.svg)](http://dx.doi.org/10.5281/zenodo.13235)
 
-Ing, A.D. (2014) MoRPE:  A Probabilistic Classifier. GitHub.  DOI:10.5281/zenodo.13235.  Retrieved from https://github.com/adaviding/Morpe/releases/tag/0.1.
+Ing, AD (2014) MoRPE:  A Probabilistic Classifier.  GitHub.  doi:10.5281/zenodo.13235.  Retrieved from https://github.com/adaviding/Morpe/releases/tag/0.1.
