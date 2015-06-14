@@ -6,9 +6,6 @@ The classification problem is commonly encountered when a finite sample of data 
 
 Ing, AD (2014) MoRPE:  A Probabilistic Classifier.  *GitHub*.  doi:10.5281/zenodo.13235.  Retrieved from https://github.com/adaviding/Morpe/releases/tag/0.1.
 
-#Not patented
-I have allowed the patent application to lapse.  This work is no longer patented.
-
 #Software Releases
 This software is implemented in multiple programming languages.
 
@@ -22,7 +19,7 @@ In this folder, you will find:
 	* Any cpp-file prefixed by "Mcl_" needs to be mexed (if not already mexed).
 	* Any other cpp-file does not need to be mexed.  These files are used in `#include` directives.
 * A number of m-files beginning with the `Mcl_` prefix.  These files are the implementation MoRPE (as MCL stands for MoRPE Classifier Library).
-* A number of m-files beginning with the `s_` prefix.  These are script files that test parts of the MCL, or otherwise demonstrate its usage.
+* A number of m-files beginning with the `sTest_` prefix.  These are script files that test parts of the MCL, or otherwise demonstrate its usage.
 * This example shows how to train a MoRPE classifier and then classify data.
 	* sMcl_TemplateForAnalysis.m
 	
@@ -34,3 +31,11 @@ Not ready
 
 ##C++
 Not ready
+
+#Legal stuff
+
+##License
+The legal license file is attached (its Apache 2.0).  The owner, licensor, and copyright holder is Almon David Ing, PhD.
+
+##Not patented
+I have allowed the patent application to lapse.  This work is no longer patented.
