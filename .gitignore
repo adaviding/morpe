@@ -1,4 +1,16 @@
+#---------------------------
+# Global
+#---------------------------
+**/obj/*
+**/bin/*
+**/*.suo
+
+#---------------------------
+# Cpp/*
+#---------------------------
+
 # Compiled Object files
+Cpp/*.sdf
 Cpp/*.slo
 Cpp/*.lo
 Cpp/*.o
@@ -13,7 +25,6 @@ Cpp/*.so
 Cpp/*.dylib
 Cpp/*.dll
 
-# Executables
-*.exe
-*.out
-*.app
+Cpp/Debug/*
+Cpp/Morpe/Debug/*
+Cpp/ipch/*

@@ -23,9 +23,8 @@ In this folder, you will find:
 	* Any other cpp-file does not need to be mexed.  These files are used in `#include` directives.
 * A number of m-files beginning with the `Mcl_` prefix.  These files are the implementation MoRPE (as MCL stands for MoRPE Classifier Library).
 * A number of m-files beginning with the `s_` prefix.  These are script files that test parts of the MCL, or otherwise demonstrate its usage.
-* Two examples of using MoRPE to classify data.
-	* s_TestMcl_Example1.m
-	* s_TestMcl_Example2.m
+* This example shows how to train a MoRPE classifier and then classify data.
+	* sMcl_TemplateForAnalysis.m
 	
 ##Csharp
 Not ready
