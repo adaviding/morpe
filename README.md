@@ -6,7 +6,7 @@ The classification problem is commonly encountered when a finite sample of data 
 
 Ing, AD (2014) MoRPE:  A Probabilistic Classifier.  *GitHub*.  doi:10.5281/zenodo.13235.  Retrieved from https://github.com/adaviding/Morpe/releases/tag/0.1.
 
-#Patent
+#Not patented
 I have allowed the patent application to lapse.  This work is no longer patented.
 
 #Software Releases
