@@ -24,7 +24,7 @@ In this folder, you will find:
 	* sMcl_TemplateForAnalysis.m
 	
 ##Csharp
-Not ready
+Not ready.  Anticipated release:  July 1, 2015.
 
 ##Java
 Not ready
