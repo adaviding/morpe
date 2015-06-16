@@ -1,6 +1,6 @@
 function out = Mcl_Poly_Tngl_Ctor(Xcell, Xtrans, Rank, ForceEqualPriors, Nquantiles, DisplayModulus, OptNapproaches)
 
-% function out = Mcl_Poly_Tngl_Ctor(Xcell, IdMethod, MaxNeighbors, ForceEqualPriors, Nquantiles, DisplayModulus, OptNapproaches)
+% function out = Mcl_Poly_Tngl_Ctor(Xcell, Xtrans, Rank, ForceEqualPriors, Nquantiles, DisplayModulus, OptNapproaches)
 %	This function constructs a "Triangle" of Ndims*(Ndims-1)/2 classifiers.  Each classifier considers only two spatial dimensions.
 %	There are Ndims*(Ndims-1)/2 unique pairs of dimensions, hence that determines the number of classifiers in the triangle.
 %	Note that if SolverOptions are not supplied, then this method will merely construct the classifiers without training them.
