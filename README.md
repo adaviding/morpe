@@ -7,7 +7,7 @@ The classification problem is commonly encountered when a finite sample of data 
 Ing, AD (2014) MoRPE:  A Probabilistic Classifier.  *GitHub*.  doi:10.5281/zenodo.13235.  Retrieved from https://github.com/adaviding/Morpe/releases/tag/0.1.
 
 #Software Releases
-This software is implemented in multiple programming languages.
+I am planning to provide this software in multiple programming languages.  Keep in mind... I can only work on this project in my spare time, and I don't have much spare time.
 
 ##C++
 Not ready.
@@ -19,9 +19,9 @@ Not ready.  Expected to be ready on July 1, 2015.
 Not ready.
 
 ##Matlab
-This is the original implementation of MoRPE.  I used it to conduct analyses for my PhD Dissertation.  I finished writing this code in 2009.
+This is the original implementation of MoRPE.  It was written in Matlab and C so that I could conduct analyses for my PhD Dissertation.  This code was not written for mass consumption.  It contains some dead code, and the C code is particularly ugly.  I will eventually clean this up AFTER I have cross-coded MoRPE to C++.
 
-This release is actually a combination of Matlab and C.  In order for the C files to be callable from Matlab, each file needs to be "mexed" from the Matlab command line.  Here I have already mexed the C files for 32-bit Windows, and so the software will work from a 32-bit Windows machine.  If you want this software to work on a different platform, you must mex the necessary C files.  For more information, see the Matlab documentation for `mex`.
+In order for the C files to be callable from Matlab, each file needs to be "mexed" from the Matlab command line.  Here I have already mexed the C files for 32-bit Windows, and so the software will work from a 32-bit Windows machine.  If you want this software to work on a different platform, you must mex the necessary C files.  For more information, see the Matlab documentation for `mex`.
 
 In this folder, you will find:
 * A number of cpp-files.
@@ -31,6 +31,8 @@ In this folder, you will find:
 * A number of m-files beginning with the `sTest_` prefix.  These are script files that test parts of the MCL, or otherwise demonstrate its usage.
 * This example shows how to train a MoRPE classifier and then classify data.
 	* sMcl_TemplateForAnalysis.m
+* This code also tests the implementation of a MoRPE classifier, and so it should be useful.
+	* sTest_Mcl_Poly.m
 
 #Legal stuff
 

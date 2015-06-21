@@ -1,4 +1,4 @@
-function Mcl_Poly_Ctor_Output = Mcl_Poly_Ctor(Xcell, Xtrans, Rank, ForceEqualPriors, Nquantiles, DisplayModulus, OptNapproaches)
+function out = Mcl_Poly_Ctor(Xcell, Xtrans, Rank, ForceEqualPriors, Nquantiles, DisplayModulus, OptNapproaches)
 
 % function out = Mcl_Poly_Ctor(Xcell, Xtrans, Rank, ForceEqualPriors, Nquantiles, DisplayModulus, OptNapproaches)
 % This constructs a new Mcl_Poly classifier.  This function initializes the classifier and utilizes the mex function
@@ -38,8 +38,6 @@ function Mcl_Poly_Ctor_Output = Mcl_Poly_Ctor(Xcell, Xtrans, Rank, ForceEqualPri
 % OptNapproaches (int32 scalar) Defaults to 1.
 %	If 0 or negative, solver will not be optimized.  If positive, the solver is optimized with out.SolverOptions.Napproaches set equal to OptNapproaches.
 
-global Mcl_Poly_Ctor_Output
-
 nCats = numel(Xcell);
 if nCats<2
 	error('There must be at least 2 categories of data.  Xcell must have more elements.');
@@ -76,7 +74,7 @@ end
 [Ncoeff, NcoeffByRank, CoeffDims] = Mcl_Poly_Coeff(int32(Rank),int32(nDims));
 
 %	Play it safe:  Allocate all memory in M-file, not Mex-File.  This protects against funny business with Matlab's memory manager.
-Mcl_Poly_Ctor_Output = struct(...
+out = struct(...
 	'Class', 'Mcl_Poly', ...
 	'Ncats', int32(nCats), ...
 	'Ndims', int32(nDims), ...
@@ -117,7 +115,7 @@ Mcl_Poly_Ctor_Output = struct(...
 pLow = 0.25/nCats/(ntSamp/Nquantiles);
 pHigh = 1-(nCats-1)*pLow;
 for iCat=1:nCats
-	Mcl_Poly_Ctor_Output.Quant = [Mcl_Poly_Ctor_Output.Quant, ...
+	out.Quant = [out.Quant, ...
 		struct(...
 			'Class', 'Mcl_QuantizedDv', ...
 			'Nquantiles', int32(Nquantiles), ...
@@ -138,15 +136,15 @@ if ~isempty(Xtrans)
 	Xcell = Mcl_Trfm_Cols(Xtrans,true,Xcell);
 end
 %	Calculate initial representation in the structure.
-Mcl_Poly_Init(Mcl_Poly_Ctor_Output, Xcell);
+Mcl_Poly_Init(out, Xcell);
 %	Configure entropy minimization solver
-Mcl_Poly_Ctor_Output.SolverOptions.DisplayModulus = DisplayModulus;
-Mcl_Poly_Ctor_Output.SolverOptions.wShrinkFactor = 2;
-Mcl_Poly_Ctor_Output.SolverOptions.wDiffMax = sqrt(double(  nPoly*Ncoeff  )) * max(abs(Mcl_Poly_Ctor_Output.wInit(:)./Mcl_Poly_Ctor_Output.wScale(:)));
-Mcl_Poly_Ctor_Output.SolverOptions.wDiffTol = 0.0001*Mcl_Poly_Ctor_Output.SolverOptions.wDiffMax;
-Mcl_Poly_Ctor_Output.SolverOptions.hTol = 0.0001;
-Mcl_Poly_Ctor_Output.SolverOptions.Napproaches = max(1,OptNapproaches);
+out.SolverOptions.DisplayModulus = DisplayModulus;
+out.SolverOptions.wShrinkFactor = 2;
+out.SolverOptions.wDiffMax = sqrt(double(  nPoly*Ncoeff  )) * max(abs(out.wInit(:)./out.wScale(:)));
+out.SolverOptions.wDiffTol = 0.0001*out.SolverOptions.wDiffMax;
+out.SolverOptions.hTol = 0.0001;
+out.SolverOptions.Napproaches = max(1,OptNapproaches);
 %	Optimize
 if OptNapproaches>0
-	Mcl_Poly_Ctor_Output = Mcl_Poly_Train(Mcl_Poly_Ctor_Output);
+	out = Mcl_Poly_Train(out);
 end
