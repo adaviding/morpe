@@ -32,8 +32,8 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="F.MonotonicRegressor.cs" />
-    <Compile Include="D.MonotonicRegressor.cs" />
+    <Compile Include="D.cs" />
+    <Compile Include="MonotonicRegressor.cs" />
     <Compile Include="MonotonicRegressionType.cs" />
     <Compile Include="OptimizationMeasurement.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

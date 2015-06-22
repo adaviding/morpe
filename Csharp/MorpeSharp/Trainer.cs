@@ -13,7 +13,7 @@ namespace Morpe
 		/// <summary>
 		/// Used to perform monotonic regression of a tabulated function.
 		/// </summary>
-		public static readonly ThreadLocal<F.MonotonicRegressor> Regressor = new ThreadLocal<F.MonotonicRegressor>(() => new F.MonotonicRegressor());
+		public static readonly ThreadLocal<MonotonicRegressor> Regressor = new ThreadLocal<MonotonicRegressor>(() => new MonotonicRegressor());
 		/// <summary>
 		/// The classifier that is trained.
 		/// </summary>
@@ -273,6 +273,8 @@ namespace Morpe
 						}
 					}
 				}
+
+				Static.Copy(this.ParamInit, this.Classifier.Params);
 			}
 			else
 			{

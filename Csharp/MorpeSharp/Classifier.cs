@@ -20,11 +20,12 @@ namespace Morpe
 		/// </summary>
 		public readonly int Npoly;
 		/// <summary>
-		/// The coefficients of a multivariate polynomial.
+		/// Allows a multivariate polynomial to be constructed.
 		/// </summary>
 		public readonly Poly Coeffs;
 		/// <summary>
-		/// The solver parameters.  Each row specifies parameters for a polynomial, so this array has <see cref="Npoly"/> rows and Coeffs.<see cref="Poly.Ncoeff"/> columns.
+		/// The model parameters.  Each row specifies coefficients for a polynomial, so this array has <see cref="Npoly"/>
+		/// rows and <see cref="Coeffs"/>.Ncoeff columns (See <see cref="Poly.Ncoeff"/>).
 		/// </summary>
 		public readonly float[][] Params;
 		/// <summary>
@@ -68,6 +69,20 @@ namespace Morpe
 		public Classifier Copy()
 		{
 			return new Classifier(this);
+		}
+		/// <summary>
+		/// Evaluates the specified polynomial function for an expanded multivariate coordinate.
+		/// </summary>
+		/// <param name="iPoly">The polynomial to evaluate.  This is a zero-based index into a row of <see cref="Params"/>.</param>
+		/// <param name="x">The expanded multivariate coordinate.  For more information, see <see cref="Poly.Expand"/>.</param>
+		/// <returns>The value of the polynomial expression.</returns>
+		public double EvalPolyFromExpanded(int iPoly, float[] x)
+		{
+			double output = 0.0;
+			float[] poly = this.Params[iPoly];
+			for (int i = 0; i < poly.Length; i++)
+				output += poly[i] * x[i];
+			return output;
 		}
 		/// <summary>
 		/// Trains the classifier by optimizing parameters based on the training data using default solver options.

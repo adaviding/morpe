@@ -24,7 +24,7 @@ Not ready.  Expected to be ready on July 1, 2015.
 Not ready.
 
 ##Matlab
-This is the original implementation of MoRPE.  **This code is filthy:**  I invented MoRPE *almost by accident* because nothing else seemed to fit the data I collected for my dissertation.  I tried many different things before MoRPE emerged from the chaos, and I have yet to remove the chaos from this code.  There is plenty of dead code here, and the C code is almost impossible to understand (this was my first time writing anything in C or C++).
+This is the original implementation of MoRPE.  **This code is filthy.**  I invented MoRPE almost by accident because nothing else seemed to fit the data I collected for my dissertation.  I tried many different things before MoRPE emerged from the chaos, and so this code is very chaotic.  There is plenty of dead code here, and the C code is almost impossible to understand (this was my first time writing anything in C or C++).
 
 In order for the C files to be callable from Matlab, each file needs to be "mexed" from the Matlab command line.  Here I have already mexed the C files for 32-bit Windows, and so the software will work from a 32-bit Windows machine.  If you want this software to work on a different platform, you must mex the necessary C files.  For more information, see the Matlab documentation for `mex`.
 
