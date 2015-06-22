@@ -24,7 +24,7 @@ Not ready.  Expected to be ready on July 1, 2015.
 Not ready.
 
 ##Matlab
-This is the original implementation of MoRPE.  It was written in Matlab and C so that I could conduct analyses for my PhD Dissertation.  **This code is extremely filthy:**  It was not written for mass consumption.  It reflects the fact that I invented almost *by accident* because none of the standard classifiers seemed to fit my data well enough.  I tried many different things before MoRPE emerged from the chaos.  As such there is plenty of dead code in here, and the C code is particularly ugly.  (I was not a C++ programmer back then.)
+This is the original implementation of MoRPE.  It was written in Matlab and C so that I could conduct analyses for my PhD Dissertation.  **This code is extremely filthy:**  It was not written for mass consumption.  I invented it *almost by accident*: None of the standard classifiers seemed to fit my data properly, so I built something that did a better job.  I tried many different things before MoRPE emerged from the chaos, and I have yet to remove the chaos from this code.  There is plenty of dead code here, and the C code is almost impossible to understand (this was my first time writing anything in C or C++).  On a more positive note:  The algorithm is very well tested.  I analyzed my dissertation data repeatedly until MoRPE behaved perfectly.
 
 In order for the C files to be callable from Matlab, each file needs to be "mexed" from the Matlab command line.  Here I have already mexed the C files for 32-bit Windows, and so the software will work from a 32-bit Windows machine.  If you want this software to work on a different platform, you must mex the necessary C files.  For more information, see the Matlab documentation for `mex`.
 
