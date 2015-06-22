@@ -16,22 +16,22 @@ namespace Morpe
 		/// </summary>
 		public readonly int Ntotal;
 		/// <summary>
-		/// The number of data points in each category.  The number of categories is equal to <see cref="MorpeSharp.Neach.Length"/>;
+		/// The number of data points in each category.  The number of categories is equal to <see cref="Neach.Length"/>;
 		/// </summary>
 		public readonly int[] Neach;
 		/// <summary>
-		/// The spatial dimensionality, and the number of rows of <see cref="MorpeSharp.X"/>.
+		/// The spatial dimensionality, and the number of rows of <see cref="X"/>.
 		/// </summary>
 		public readonly int Ndims;
 		/// <summary>
-		/// The number of categories, also equal to <see cref="MorpeSharp.Neach.Length"/>.
+		/// The number of categories, also equal to <see cref="Neach.Length"/>.
 		/// </summary>
 		public readonly int Ncats;
 		/// <summary>
-		/// Initializes a new instance of the <see cref="MorpeSharp.CategorizedData"/> class.  Allocates memory for pages, rows, and columns of <see cref="MorpeSharp.X"/>.
+		/// Initializes a new instance of the <see cref="CategorizedData"/> class.  Allocates memory for pages, rows, and columns of <see cref="X"/>.
 		/// </summary>
-		/// <param name="Neach"><see cref="MorpeSharp.Neach"/></param>
-		/// <param name="Ndims"><see cref="MorpeSharp.Ndims"/></param>
+		/// <param name="Neach"><see cref="Neach"/></param>
+		/// <param name="Ndims"><see cref="Ndims"/></param>
 		public CategorizedData(int[] Neach, int Ndims)
 		{
 			this.Neach = Neach;

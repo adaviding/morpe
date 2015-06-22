@@ -63,6 +63,59 @@ namespace Morpe
 			Static.Copy(toCopy.Params, this.Params);
 		}
 		/// <summary>
+		/// Classifies the multivariate coordinate.  (It should not be expanded.)
+		/// </summary>
+		/// <param name="x">The multivariate coordiante.</param>
+		/// <returns>A vector of length <see cref="Ncats"/> giving the conditional probability of category membership for each category.
+		/// Sums to exactly 1.0 (guaranteed).</returns>
+		public double[] Classify(float[] x)
+		{
+			return this.ClassifyExpanded(this.Coeffs.Expand(x));
+		}
+		/// <summary>
+		/// Classifies the expanded multivariate coordinate.
+		/// </summary>
+		/// <param name="x">The expanded multivariate coordinate.  For more information, see <see cref="Poly.Expand"/>.</param>
+		/// <returns>A vector of length <see cref="Ncats"/> giving the conditional probability of category membership for each category.
+		/// Sums to exactly 1.0 (guaranteed).</returns>
+		public double[] ClassifyExpanded(float[] x)
+		{
+			double p = 0.0;
+			if (this.Npoly == 1)
+			{
+				double y = this.EvalPolyFromExpanded(0, x);
+				Quantization q = this.Quant[0];
+				if (y < q.Ymid[0])
+					p = q.P[0];
+				else if (y > q.Ymid[q.Nquantiles - 1])
+					p = q.P[q.Nquantiles - 1];
+				else
+					p = Static.Linterp(q.Ymid, q.P, y);
+				return new double[] { p, 1.0 - p };
+			}
+			else
+			{
+				double[] output = new double[this.Ncats];
+				double pSum = 0.0;
+				for (int iCat = 0; iCat < this.Ncats; iCat++)
+				{
+					double y = this.EvalPolyFromExpanded(iCat, x);
+					Quantization q = this.Quant[iCat];
+					if (y < q.Ymid[0])
+						p = q.P[0];
+					else if (y > q.Ymid[q.Nquantiles - 1])
+						p = q.P[q.Nquantiles - 1];
+					else
+						p = Static.Linterp(q.Ymid, q.P, y);
+					output[iCat] = p;
+					pSum += p;
+				}
+				for (int iCat = 0; iCat < this.Ncats; iCat++)
+					output[iCat] /= pSum;
+				return output;
+			}
+		}
+		/// <summary>
 		/// Creates a copy of the classifier which utilizes totally different memory resources.
 		/// </summary>
 		/// <returns>A copy of the classifier, with identical parameter values, but utilizing completely different memory resources.</returns>
