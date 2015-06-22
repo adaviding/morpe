@@ -16,7 +16,7 @@ namespace Morpe
 		/// </summary>
 		Increasing,
 		/// <summary>
-		/// A blending of two other methods:  NonDecreasing and Increasing.
+		/// This is the recommended setting.  It is a blending of two other methods:  NonDecreasing and Increasing.  The output is monotonic.
 		/// </summary>
 		Blended
 	}

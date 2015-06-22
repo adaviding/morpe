@@ -1,21 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
 using System.Text;
 
 namespace Morpe
 {
 	/// <summary>
-	/// Trains an instance of the MoRPE classifier to data.
+	/// Trains an instance of the MoRPE classifier using the training data provided.
 	/// </summary>
 	public class Trainer
 	{
+		/// <summary>
+		/// Used to perform monotonic regression of a tabulated function.
+		/// </summary>
+		public static readonly ThreadLocal<F.MonotonicRegressor> Regressor = new ThreadLocal<F.MonotonicRegressor>(() => new F.MonotonicRegressor());
 		/// <summary>
 		/// The classifier that is trained.
 		/// </summary>
 		public readonly Classifier Classifier;
 		/// <summary>
-		/// The relative importance of each category on the solution.
+		/// The relative importance of each category on the solution.  This is important when calculating accuracy and entropy.
 		/// </summary>
 		public readonly double[] CatWeights;
 		/// <summary>
@@ -31,11 +35,20 @@ namespace Morpe
 		{
 			this.Classifier = classifier;
 			this.CatWeights = new double[classifier.Ncats];
+
+			//	Initialize thread-local storage for training.
+			this.localSortIdx = new ThreadLocal<int[]>[classifier.Npoly];
+			for (int i = 0; i < classifier.Npoly; i++)
+				this.localSortIdx[i] = new ThreadLocal<int[]>();
 		}
 		/// <summary>
 		/// The total amount of weight across all training data.
 		/// </summary>
 		protected double totalWeight;
+		/// <summary>
+		/// The number of quantiles used.
+		/// </summary>
+		public int Nquantiles = 15;
 		/// <summary>
 		/// The scale of each polynomial coefficient.  The scales are the same across all polynomials.
 		/// </summary>
@@ -72,7 +85,6 @@ namespace Morpe
 		/// Univariate classifiers for each category and each column of data.  Indexed as [iCat][iCoeff].
 		/// </summary>
 		public UniCrit[][] Xcrits;
-
 		/// <summary>
 		/// Trains the classifier by optimizing parameters based on the training data using specified solver options.
 		/// </summary>
@@ -170,7 +182,7 @@ namespace Morpe
 			}
 
 			//-----------------------
-			//	Compute the expected minimum value for the univariate classification accuracy.
+			//	Compute the expected minimum value for the univariate 2-category classification accuracy.
 			//-----------------------
 			double[] accMin = new double[data.Ncats];
 			for (int iCat = 0; iCat < data.Ncats; iCat++)
@@ -268,7 +280,144 @@ namespace Morpe
 				Static.Copy(this.Classifier.Params, this.ParamInit);
 			}
 
+			//	Prepare optimization memory.
+			byte[] cats = new byte[data.Ntotal];
+			double[] y = new double[data.Ntotal];
+
+			//	Set the category labels for each datum.
+			int jSamp = 0;
+			for (int iCat = 0; iCat < data.Ncats; iCat++)
+			{
+				int n = data.Neach[iCat];
+				for (int iSamp = 0; iSamp < n; iSamp++)
+					cats[jSamp++] = (byte)iCat;
+			}
+
 			//	TODO:  Optimize parameters.
+		}
+
+		/// <summary>
+		/// Internal memory resource.  Used for sorting y-values during the quantization procedure.  Indexed for every [iPoly].
+		/// </summary>
+		protected ThreadLocal<int[]>[] localSortIdx;
+		/// <summary>
+		/// This performs the quantization procedure for the data provided.
+		/// </summary>
+		/// <param name="yVals">The y-value of each datum in the sample.  These values are the output
+		/// of the polynomial function for the target category.</param>
+		/// <param name="cats">The category label of each datum.</param>
+		/// <param name="catWeight">The weight assigned to each category.</param>
+		/// <param name="targetCat">The target category for the y-values provided.</param>
+		protected Quantization quantize(float[] yVals, byte[] cats, double[] catWeight, byte targetCat)
+		{
+			//	Prepare output
+			Quantization output = new Quantization(this.Nquantiles);
+			double wPerBin = this.totalWeight / (double)this.Nquantiles;
+			output.Pmin = 0.5 / wPerBin;
+			output.Pmax = 1.0 - output.Pmin;
+
+			//	Get the memory resource for sorting yVals.
+			ThreadLocal<int[]> localIdx = this.localSortIdx[targetCat];
+			if (localIdx.Value == null || localIdx.Value.Length < yVals.Length)
+			{
+				localIdx.Value = new int[yVals.Length];
+				Static.FillSeries(localIdx.Value);
+			}
+			//	IMPORTANT PERFORMANCE NOTE:
+			//	Each time we enter this function, the sort index is preserved from the prior function call.
+			//	This typically leads to faster sort times during optimization because typically the list is sorted
+			//	already (or partially sorted).
+			int[] idx = localIdx.Value;
+
+			Static.QuickSortIndex(idx, yVals, 0, yVals.Length);
+
+			int iBin = 0;  // The current bin.
+			double ySum = 0.0; // Weighted sum of y-values for the current bin.
+			double correctWeight = 0.0; // Correct weight for the current bin.
+			double errorWeight = 0.0;  // Incorrect weight for the current bin.
+			double binWeight;
+			
+			double wNextBin = wPerBin; // The amount of cucmulative weight that separates the current bin from the next.
+			double wThis = 0.0; // The current accumulated weight.
+			double dwThis; // The amount of weight added by the current sample.
+			double wLast;	//	The accumulated weight prior to the current sample.
+
+			//	Quantize the  samples.
+			for (int iSamp = 0; iSamp < yVals.Length; iSamp++)
+			{
+				int iSort = idx[iSamp];
+				byte idCat = cats[iSort];
+				wLast = wThis;
+				dwThis = catWeight[idCat];
+				wThis += dwThis;
+				if (wThis > wNextBin || iSamp == yVals.Length-1)
+				{
+					//---------------------------
+					//	It is time for a new bin.
+					//---------------------------
+					if ( iBin < this.Nquantiles-1 && wNextBin - wLast > wThis - wNextBin)
+					{
+						//	Rewind to last sample.
+						iSort = idx[--iSamp];
+						wThis = wLast;
+					}
+					else
+					{
+						//	Process this sample  as normal.
+						ySum += dwThis * yVals[iSort];
+						if (idCat == targetCat)
+							correctWeight += dwThis;
+						else
+							errorWeight += dwThis;
+					}
+
+					//---------------------------
+					//	Special processing for the last bin.
+					//---------------------------
+					if (iBin == this.Nquantiles - 1)
+					{
+						//	There should not be any more samples, but we are doing this just to be sure.
+						while (++iSamp < yVals.Length)
+						{
+							iSort = idx[iSamp];
+							idCat = cats[iSort];
+							dwThis = catWeight[idCat];
+							wThis += dwThis;
+							ySum += dwThis * yVals[iSort];
+							if (idCat == targetCat)
+								correctWeight += dwThis;
+							else
+								errorWeight += dwThis;
+						}
+					}
+
+					//---------------------------
+					//	Close out the current bin.
+					//---------------------------
+					binWeight = Math.Min(0.00001,correctWeight + errorWeight);
+					output.P[iBin] = correctWeight / binWeight;
+					output.Ymid[iBin] = ySum / binWeight;
+					if (iBin < this.Nquantiles-1)
+						output.Ysep[iBin] = (yVals[iSort] + yVals[idx[iSamp + 1]]) / 2.0;
+					
+					//---------------------------
+					//	Start a next bin.
+					//---------------------------
+					iBin++;
+					correctWeight = errorWeight = 0.0;
+					wNextBin += wPerBin;
+				}
+				else
+				{
+					//	Process each sample.
+					ySum += dwThis * yVals[iSort];
+					if (idCat == targetCat)
+						correctWeight += dwThis;
+					else
+						errorWeight += dwThis;
+				}
+			}
+			return output;
 		}
 	}
 }

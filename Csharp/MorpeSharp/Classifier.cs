@@ -28,6 +28,11 @@ namespace Morpe
 		/// </summary>
 		public readonly float[][] Params;
 		/// <summary>
+		/// Holds data related to the quantization of the decision variable (for each polynomial) throughout the training sample.
+		/// Creates a monotonic mapping from the decision variable to a probability of category membership;
+		/// </summary>
+		public readonly Quantization[] Quant;
+		/// <summary>
 		/// Initializes an untrained instance of the <see cref="Morpe.Classifier"/> class.  The classifier should be trained
 		/// (see <see cref="Train"/>) before it can be used for classification.
 		/// </summary>
@@ -43,6 +48,7 @@ namespace Morpe
 			if (this.Ncats > 2)
 				this.Npoly = this.Ncats;
 			this.Params = Static.NewArrays<float>(this.Npoly, this.Coeffs.Ncoeffs);
+			this.Quant = new Quantization[this.Npoly];
 		}
 		protected Classifier(Classifier toCopy)
 		{

@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Morpe
+namespace Morpe.D
 {
-	public class MonotonicRegression
+	public class MonotonicRegressor
 	{
+		/// <summary>
+		/// The type of monotonic regression performed.  Suggest MonotonicRegressionType.Blended.
+		/// </summary>
 		public MonotonicRegressionType Type = MonotonicRegressionType.Blended;
-		protected double[] dy;
-		protected double[] ynd;
 		/// <summary>
 		/// Performs a monotonic regression of a tabulated function.  This method calculates a monotonic function that is approximately equal
 		/// to the tabulated function provided.
@@ -440,5 +441,7 @@ namespace Morpe
 			}
 			return nTrips;
 		}
+		protected double[] dy;
+		protected double[] ynd;
 	}
 }

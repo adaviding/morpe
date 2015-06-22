@@ -6,6 +6,11 @@ The classification problem is commonly encountered when a finite sample of data 
 
 Ing, AD (2014) MoRPE:  A Probabilistic Classifier.  *GitHub*.  doi:10.5281/zenodo.13235.  Retrieved from https://github.com/adaviding/Morpe/releases/tag/0.1.
 
+#Recommended Usage
+MoRPE is one of the best classifiers available in the public domain (perhaps the best).  However, this does not mean that it can be applied blindly to any data set.  Before MoRPE is applied, the analyst must design a feature space that minimizes category fragmentation (as discussed in the paper).  This means that the analyst must spend time visualizing the data in many possible feature spaces, and carefully select the set of features that appears to minimize fragmentation.  The analyst doesn't need to be perfect, but they should make a decent effort and then MoRPE will handle the rest (as it is designed to do).
+
+MoRPE is intended for scenarios where you have at least a few hundred samples per category, and where the number of categories is relatively small (between 2 and 10).
+
 #Software Releases
 I am planning to provide this software in multiple programming languages.  Keep in mind... I can only work on this project in my spare time, and I don't have much spare time.
 
@@ -19,7 +24,7 @@ Not ready.  Expected to be ready on July 1, 2015.
 Not ready.
 
 ##Matlab
-This is the original implementation of MoRPE.  It was written in Matlab and C so that I could conduct analyses for my PhD Dissertation.  This code was not written for mass consumption.  It contains some dead code, and the C code is particularly ugly.  I will eventually clean this up AFTER I have cross-coded MoRPE to C++.
+This is the original implementation of MoRPE.  It was written in Matlab and C so that I could conduct analyses for my PhD Dissertation.  **This code is extremely filthy:**  It was not written for mass consumption.  It reflects the fact that I invented almost *by accident* because none of the standard classifiers seemed to fit my data well enough.  I tried many different things before MoRPE emerged from the chaos.  As such there is plenty of dead code in here, and the C code is particularly ugly.  (I was not a C++ programmer back then.)
 
 In order for the C files to be callable from Matlab, each file needs to be "mexed" from the Matlab command line.  Here I have already mexed the C files for 32-bit Windows, and so the software will work from a 32-bit Windows machine.  If you want this software to work on a different platform, you must mex the necessary C files.  For more information, see the Matlab documentation for `mex`.
 

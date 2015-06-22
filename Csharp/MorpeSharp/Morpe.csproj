@@ -32,7 +32,9 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MonotonicRegression.cs" />
+    <Compile Include="F.MonotonicRegressor.cs" />
+    <Compile Include="D.MonotonicRegressor.cs" />
+    <Compile Include="MonotonicRegressionType.cs" />
     <Compile Include="OptimizationMeasurement.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="CategorizedData.cs" />
@@ -40,7 +42,7 @@
     <Compile Include="UniCrit.cs" />
     <Compile Include="WeightingRule.cs" />
     <Compile Include="Static.cs" />
-    <Compile Include="Quant.cs" />
+    <Compile Include="Quantization.cs" />
     <Compile Include="Classifier.cs" />
     <Compile Include="SolverOutput.cs" />
     <Compile Include="Poly.cs" />
