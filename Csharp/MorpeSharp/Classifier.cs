@@ -59,8 +59,39 @@ namespace Morpe
 			this.Npoly = 1;
 			if (this.Ncats > 2)
 				this.Npoly = this.Ncats;
+
 			this.Params = Static.NewArrays<float>(this.Npoly, this.Coeffs.Ncoeffs);
 			Static.Copy(toCopy.Params, this.Params);
+
+			this.Quant = new Quantization[this.Npoly];
+			Quantization q;
+			for (int i = 0; i < this.Npoly; i++)
+			{
+				q = toCopy.Quant[i];
+				if(q!=null)
+					this.Quant[i] = q.Copy();
+			}
+		}
+		/// <summary>
+		/// This is used by <see cref="GetDual"/> and <see cref="GetDuals"/>.
+		/// </summary>
+		/// <param name="toCopy">A classifier having more than 1 polynomial.</param>
+		/// <param name="targetPoly">The target polynomial function.</param>
+		protected Classifier(Classifier toCopy, int targetPoly)
+		{
+			this.Ncats = 2;
+			this.Ndims = toCopy.Ndims;
+			this.Coeffs = new Poly(this.Ndims, toCopy.Coeffs.Rank);
+			this.Npoly = 1;
+
+			this.Params = Static.NewArrays<float>(this.Npoly, this.Coeffs.Ncoeffs);
+			Array.Copy(toCopy.Params[targetPoly], this.Params[0], this.Coeffs.Ncoeffs);
+
+			this.Quant = new Quantization[this.Npoly];
+			Quantization q;
+			q = toCopy.Quant[targetPoly];
+			if (q != null)
+				this.Quant[0] = q.Copy();
 		}
 		/// <summary>
 		/// Classifies the multivariate coordinate.  (It should not be expanded.)
@@ -135,6 +166,31 @@ namespace Morpe
 			float[] poly = this.Params[iPoly];
 			for (int i = 0; i < poly.Length; i++)
 				output += poly[i] * x[i];
+			return output;
+		}
+		/// <summary>
+		/// If this classifier has more than 1 polynomial, this function returns the "dual" classifier consisting of 1 polynomial.
+		/// It is named "dual" because it deals with 2 categories.
+		/// </summary>
+		/// <param name="targetPoly">The target polynomial.</param>
+		/// <returns>The dual classifier.</returns>
+		public Classifier GetDual(int targetPoly)
+		{
+			if (this.Npoly == 1)
+				return null;
+			return new Classifier(this, targetPoly);
+		}
+		/// <summary>
+		/// If this classifier has more than 1 polynomial, this function returns all "dual" classifiers.  See <see cref="GetDual"/> for more information.
+		/// </summary>
+		/// <returns>All dual classifiers.</returns>
+		public Classifier[] GetDuals()
+		{
+			if (this.Npoly == 1)
+				return null;
+			Classifier[] output = new Classifier[this.Npoly];
+			for (int iPoly = 0; iPoly < this.Npoly; iPoly++)
+				output[iPoly] = this.GetDual(iPoly);
 			return output;
 		}
 		/// <summary>

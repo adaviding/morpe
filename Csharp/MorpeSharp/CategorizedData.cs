@@ -8,7 +8,7 @@ namespace Morpe
 	public class CategorizedData
 	{
 		/// <summary>
-		/// The data, indexed as [c][i][j].  Each page c is a category.  Each column i is a unique data point.  Each row j is a spatial axis.
+		/// The data, indexed as [c][i][j].  Each page c is a category.  Each row i is a unique data point.  Each column j is a spatial axis.
 		/// </summary>
 		public readonly float[][][] X;
 		/// <summary>
@@ -39,12 +39,60 @@ namespace Morpe
 			this.Ncats = this.Neach.Length;
 			this.Ntotal = Static.Sum(this.Neach);
 			this.X = new float[this.Ncats][][];
-			for (int c=0; c<this.Ncats; c++)
+			for (int iCat=0; iCat<this.Ncats; iCat++)
 			{
-				this.X[c] = new float[this.Neach[c]][];
-				int n = this.Neach[c];
+				this.X[iCat] = new float[this.Neach[iCat]][];
+				int n = this.Neach[iCat];
 				for(int i=0; i<n; i++)
-					this.X[c][i] = new float[this.Ndims];
+					this.X[iCat][i] = new float[this.Ndims];
+			}
+		}
+		protected CategorizedData(CategorizedData dualViewable, int targetCat)
+		{
+			this.Neach = new int[] { dualViewable.Neach[targetCat], dualViewable.Ntotal - dualViewable.Neach[targetCat] };
+			this.Ndims = dualViewable.Ndims;
+			this.Ncats = this.Neach.Length;
+			this.Ntotal = Static.Sum(this.Neach);
+
+			//	Allocate page holders
+			this.X = new float[this.Ncats][][];
+
+			//	Allocate row holders
+			for (int iCat=0; iCat<this.Ncats; iCat++)
+				this.X[iCat] = new float[this.Neach[iCat]][];
+
+			//	Fill rows of category 0 with targetCat
+			int n = this.Neach[0];
+			for (int i = 0; i < n; i++)
+				this.X[0][i] = dualViewable.X[targetCat][i];
+
+			//	Fill rows of category 1 with remaining data.
+			int iDatum = 0;
+			for (int iCat = 0; iCat < dualViewable.Ncats; iCat++)
+			{
+				if (iCat != targetCat)
+				{
+					n = dualViewable.Neach[iCat];
+					for (int iSamp = 0; iSamp < n; iSamp++)
+						this.X[1][iDatum++] = dualViewable.X[iCat][iSamp];
+				}
+			}
+		}
+		/// <summary>
+		/// This reverses the effects of <see cref="Expand"/>.  Expanded terms are removed if they exist.
+		/// </summary>
+		/// <param name="poly">The defiinition of the polynomial expansion.</param>
+		public void Contract()
+		{
+			for (int iCat = 0; iCat < this.Ncats; iCat++)
+			{
+				int nSamp = this.Neach[iCat];
+				for (int iSamp = 0; iSamp < nSamp; iSamp++)
+				{
+					float[] x = this.X[iCat][iSamp];
+					if (x.Length > this.Ndims)
+						this.X[iCat][iSamp] = Static.GetSubarray(x, 0, this.Ndims - 1);
+				}
 			}
 		}
 		/// <summary>
@@ -67,21 +115,32 @@ namespace Morpe
 			}
 		}
 		/// <summary>
-		/// This reverses the effects of <see cref="Expand"/>.  Expanded terms are removed if they exist.
+		/// If the data consists of more than 2 categories, this function returns a "dual" view of the classification data.  This
+		/// views the data as if it consisted only two categories.  In the dual view, the targetCat is represented as category 0 while
+		/// all other data are represented as category 1.
 		/// </summary>
-		/// <param name="poly">The defiinition of the polynomial expansion.</param>
-		public void Contract()
+		/// <param name="targetCat">The target category to be represented as category 0 in the dual view.</param>
+		/// <returns>The dual view of this data set.</returns>
+		public CategorizedData GetDual(int targetCat)
 		{
+			if (this.Ncats <= 2)
+				return null;
+
+			return new CategorizedData(this, targetCat);
+		}
+		/// <summary>
+		/// If the data consists of more than 2 cateogries, this function returns all "dual" view of the classification data.
+		/// See <see cref="GetDual"/> for more information.
+		/// </summary>
+		/// <returns>All dual views of the data.</returns>
+		public CategorizedData[] GetDuals()
+		{
+			if (this.Ncats <= 2)
+				return null;
+			CategorizedData[] output = new CategorizedData[this.Ncats];
 			for (int iCat = 0; iCat < this.Ncats; iCat++)
-			{
-				int nSamp = this.Neach[iCat];
-				for (int iSamp = 0; iSamp < nSamp; iSamp++)
-				{
-					float[] x = this.X[iCat][iSamp];
-					if (x.Length > this.Ndims)
-						this.X[iCat][iSamp] = Static.GetSubarray(x, 0, this.Ndims - 1);
-				}
-			}
+				output[iCat] = this.GetDual(iCat);
+			return output;
 		}
 	}
 }

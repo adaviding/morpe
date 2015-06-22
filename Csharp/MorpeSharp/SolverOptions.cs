@@ -41,5 +41,17 @@ namespace Morpe
 		/// Determines how the optimization routine weights data from each category.
 		/// </summary>
 		public WeightingRule WeightingRule = WeightingRule.EqualPriors;
+		public SolverOptions Copy()
+		{
+			SolverOptions output = new SolverOptions();
+			output.EntropyTol = this.EntropyTol;
+			output.InitializeParams = this.InitializeParams;
+			output.NumberOfApproaches = this.NumberOfApproaches;
+			output.ParamShrinkFactor = this.ParamShrinkFactor;
+			output.ParamDiffMax = this.ParamDiffMax;
+			output.ParamDiffMin = this.ParamDiffMin;
+			output.WeightingRule = this.WeightingRule;
+			return output;
+		}
 	}
 }

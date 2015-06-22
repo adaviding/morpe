@@ -37,6 +37,7 @@ namespace Morpe
 			this.CatWeights = new double[classifier.Ncats];
 
 			//	Initialize thread-local storage for training.
+			this.localY = new ThreadLocal<float[]>();
 			this.localSortIdx = new ThreadLocal<int[]>[classifier.Npoly];
 			for (int i = 0; i < classifier.Npoly; i++)
 				this.localSortIdx[i] = new ThreadLocal<int[]>();
@@ -52,39 +53,15 @@ namespace Morpe
 		/// <summary>
 		/// The scale of each polynomial coefficient.  The scales are the same across all polynomials.
 		/// </summary>
-		public float[] ParamScales;
+		public float[] ParamScale;
 		/// <summary>
 		/// The initial values of the polynomial coefficients.  Indexed as [iPoly][iCoeff].
 		/// </summary>
 		public float[][] ParamInit;
 		/// <summary>
-		/// The grand mean of all training data (for each column of data).
-		/// </summary>
-		public double[] Xmean;
-		/// <summary>
-		/// The grand variance of all training data (for each column of data).
-		/// </summary>
-		public double[] Xvar;
-		/// <summary>
 		/// The scale of the training data (for each column of data).
 		/// </summary>
 		public double[] Xscale;
-		/// <summary>
-		/// The category means of all training data (for each column of data).  Indexed [iCat][iCoeff].
-		/// </summary>
-		public double[][] Xmeans;
-		/// <summary>
-		/// The category variances of all training data (for each column of data).  Indexed [iCat][iCoeff].
-		/// </summary>
-		public double[][] Xvars;
-		/// <summary>
-		/// The scales of the training data for each category and each column of data.  Indexed as [iCat][iCoeff].
-		/// </summary>
-		public double[][] Xscales;
-		/// <summary>
-		/// Univariate classifiers for each category and each column of data.  Indexed as [iCat][iCoeff].
-		/// </summary>
-		public UniCrit[][] Xcrits;
 		/// <summary>
 		/// Trains the classifier by optimizing parameters based on the training data using specified solver options.
 		/// </summary>
@@ -92,6 +69,9 @@ namespace Morpe
 		/// <param name="ops">Sets the member variable <see cref="Classifier.Options"/>.  If a value is not provided, default options are used.</param>
 		public void Train(CategorizedData data, SolverOptions ops)
 		{
+			if (data.Ncats != this.Classifier.Ncats)
+				throw new ArgumentException("The number of categories in the classifier must be equal to the number of categories in the training set.");
+
 			//-----------------------
 			//	Set the solver otions.
 			//-----------------------
@@ -132,64 +112,24 @@ namespace Morpe
 			if (data.X[0][0].Length < this.Classifier.Coeffs.Ncoeffs)
 				data.Expand(this.Classifier.Coeffs);
 
-			this.ParamScales = new float[this.Classifier.Coeffs.Ncoeffs];
-
-			this.Xmean = new double[this.Classifier.Coeffs.Ncoeffs];
-			this.Xvar = new double[this.Classifier.Coeffs.Ncoeffs];
+			this.ParamScale = new float[this.Classifier.Coeffs.Ncoeffs];
 			this.Xscale = new double[this.Classifier.Coeffs.Ncoeffs];
-			this.Xmeans = Static.NewArrays<double>(this.Classifier.Ncats, this.Classifier.Coeffs.Ncoeffs);
-			this.Xvars = Static.NewArrays<double>(this.Classifier.Ncats, this.Classifier.Coeffs.Ncoeffs);
-			this.Xscales = Static.NewArrays<double>(this.Classifier.Ncats, this.Classifier.Coeffs.Ncoeffs);
-			this.Xcrits = Static.NewArrays<UniCrit>(this.Classifier.Ncats, this.Classifier.Coeffs.Ncoeffs);
 
-			double mean, del, sum;
-
-			//-----------------------
-			//	Compute the means and variances.
-			//-----------------------
-			for (int iCat = 0; iCat < data.Ncats; iCat++)
-			{
-				for(int iCoeff=0; iCoeff<this.Classifier.Coeffs.Ncoeffs; iCoeff++)
-				{
-					int nRows = data.X[iCat].Length;
-					sum = 0.0;
-					for (int iRow = 0; iRow < nRows; iRow++)
-						sum += data.X[iCat][iRow][iCoeff];
-					mean = sum / (double)nRows;
-					sum = 0.0;
-					for (int iRow = 0; iRow < nRows; iRow++)
-					{
-						del = data.X[iCat][iRow][iCoeff] - mean;
-						sum += del*del;
-					}
-					this.Xmeans[iCat][iCoeff] = mean;
-					this.Xvars[iCat][iCoeff] = sum / (double)(nRows-1);
-
-					this.Xmean[iCoeff] += mean * this.CatWeights[iCat];
-				}
-			}
+			// Univariate classifiers for each category and each column of data.  Indexed as [iCat][iCoeff].
+			UniCrit[][] xCrits = null;
+			if( ops.InitializeParams )
+				xCrits = Static.NewArrays<UniCrit>(this.Classifier.Ncats, this.Classifier.Coeffs.Ncoeffs);
 
 			//-----------------------
 			//	Prepare category labels for each datum.
 			//-----------------------
-			int[] catVec = new int[data.Ntotal];
+			this.catVec = new byte[data.Ntotal];
 			int iDatum = 0;
 			for (int iCat = 0; iCat < data.Ncats; iCat++)
 			{
 				int nRows = data.X[iCat].Length;
 				for (int iRow = 0; iRow < nRows; iRow++)
-					catVec[iDatum++] = iCat;
-			}
-
-			//-----------------------
-			//	Compute the expected minimum value for the univariate 2-category classification accuracy.
-			//-----------------------
-			double[] accMin = new double[data.Ncats];
-			for (int iCat = 0; iCat < data.Ncats; iCat++)
-			{
-				accMin[iCat] = (this.totalWeight - this.CatWeights[iCat] * (double)data.Neach[iCat]) / this.totalWeight;
-				if (accMin[iCat] < 0.5)
-					accMin[iCat] = 1.0 - accMin[iCat];
+					this.catVec[iDatum++] = (byte)iCat;
 			}
 
 			//-----------------------
@@ -201,38 +141,21 @@ namespace Morpe
 			int[] idxVec = new int[data.Ntotal];
 			int i025 = (int)(0.5 + 0.025 * (double)(data.Ntotal - 1));
 			int i975 = (int)(0.5 + 0.025 * (double)(data.Ntotal - 1));
-			sum = 0.0;
 			for (int iCoeff = 0; iCoeff < this.Classifier.Coeffs.Ncoeffs; iCoeff++)
 			{
-				//	Grand mean
-				mean = this.Xmean[iCoeff] / cwTotal;
-				this.Xmean[iCoeff] = mean;
-
-				//	Grand variance
-				iDatum = 0;
-				for (int iCat = 0; iCat < data.Ncats; iCat++)
-				{
-					int nRows = data.X[iCat].Length;
-					for (int iRow = 0; iRow < nRows; iRow++)
-					{
-						x = data.X[iCat][iRow][iCoeff];
-						del = x - mean;
-						sum += del * this.CatWeights[iCat];
-						xVec[iDatum++] = x;
-					}
-				}
-				this.Xvar[iCoeff] = sum / (this.totalWeight - 1.0f);
-
 				//	Quantiles determine the parameter scale.
 				Static.FillSeries(idxVec);
 				Static.QuickSortIndex(idxVec, xVec, 0, xVec.Length - 1);
 				scale = xVec[idxVec[i975]] - xVec[idxVec[i025]];
 				this.Xscale[iCoeff] = scale;
-				this.ParamScales[iCoeff] = (float)(1.0 / scale);
+				this.ParamScale[iCoeff] = (float)(1.0 / scale);
 
-				//	Get univariate classification criteria to get a first-order clue about the saliency of each feature.
-				for (int iCat = 0; iCat < data.Ncats; iCat++)
-					this.Xcrits[iCat][iCoeff] = UniCrit.MaximumAccuracy(iCat, catVec, xVec, idxVec, this.CatWeights);
+				if (ops.InitializeParams)
+				{
+					//	Get univariate classification criteria to get a first-order clue about the saliency of each feature.
+					for (int iCat = 0; iCat < data.Ncats; iCat++)
+						xCrits[iCat][iCoeff] = UniCrit.MaximumAccuracy(iCat, this.catVec, xVec, idxVec, this.CatWeights);
+				}
 			}
 
 			//-----------------------
@@ -240,8 +163,16 @@ namespace Morpe
 			//-----------------------
 			if (ops.InitializeParams)
 			{
-				//	The magnitude of each parameter is a function of univariate classification accuracy for the corresponding spatial dimension.
+				//	Compute the expected minimum value for the univariate 2-category classification accuracy.
+				double[] accMin = new double[data.Ncats];
+				for (int iCat = 0; iCat < data.Ncats; iCat++)
+				{
+					accMin[iCat] = (this.totalWeight - this.CatWeights[iCat] * (double)data.Neach[iCat]) / this.totalWeight;
+					if (accMin[iCat] < 0.5)
+						accMin[iCat] = 1.0 - accMin[iCat];
+				}
 
+				//	The magnitude of each parameter is a function of univariate classification accuracy for the corresponding spatial dimension.
 				double invNtotal = 1.0 / data.Ntotal;
 				for (int iCoeff = 0; iCoeff < this.Classifier.Coeffs.Ncoeffs; iCoeff++)
 				{
@@ -249,27 +180,27 @@ namespace Morpe
 					{
 						double tAcc = 0.5 *
 							(
-								Math.Max(0.0,this.Xcrits[0][iCoeff].Accuracy - accMin[0])
+								Math.Max(0.0,xCrits[0][iCoeff].Accuracy - accMin[0])
 								+
-								Math.Max(0.0,this.Xcrits[1][iCoeff].Accuracy - accMin[1])
+								Math.Max(0.0,xCrits[1][iCoeff].Accuracy - accMin[1])
 							);
 						tAcc /= (1.0 - 0.5 * (accMin[0] + accMin[1]) + invNtotal);
-						if (this.Xcrits[0][iCoeff].TargetUpper)
-							this.ParamInit[0][iCoeff] =  (float)tAcc * this.ParamScales[iCoeff];
+						if (xCrits[0][iCoeff].TargetUpper)
+							this.ParamInit[0][iCoeff] =  (float)tAcc * this.ParamScale[iCoeff];
 						else
-							this.ParamInit[0][iCoeff] = -(float)tAcc * this.ParamScales[iCoeff];
+							this.ParamInit[0][iCoeff] = -(float)tAcc * this.ParamScale[iCoeff];
 							
 					}
 					else
 					{
 						for (int iPoly = 0; iPoly < this.Classifier.Npoly; iPoly++)
 						{
-							double tAcc = Math.Max(0.0, this.Xcrits[iPoly][iCoeff].Accuracy - accMin[iPoly]);
+							double tAcc = Math.Max(0.0, xCrits[iPoly][iCoeff].Accuracy - accMin[iPoly]);
 							tAcc /= (1.0 - accMin[iPoly] + invNtotal);
-							if (this.Xcrits[iPoly][iCoeff].TargetUpper)
-								this.ParamInit[iPoly][iCoeff] =  (float)tAcc * this.ParamScales[iCoeff];
+							if (xCrits[iPoly][iCoeff].TargetUpper)
+								this.ParamInit[iPoly][iCoeff] =  (float)tAcc * this.ParamScale[iCoeff];
 							else
-								this.ParamInit[iPoly][iCoeff] = -(float)tAcc * this.ParamScales[iCoeff];
+								this.ParamInit[iPoly][iCoeff] = -(float)tAcc * this.ParamScale[iCoeff];
 						}
 					}
 				}
@@ -283,25 +214,23 @@ namespace Morpe
 			}
 
 			//	Prepare optimization memory.
-			byte[] cats = new byte[data.Ntotal];
-			double[] y = new double[data.Ntotal];
-
-			//	Set the category labels for each datum.
-			int jSamp = 0;
-			for (int iCat = 0; iCat < data.Ncats; iCat++)
-			{
-				int n = data.Neach[iCat];
-				for (int iSamp = 0; iSamp < n; iSamp++)
-					cats[jSamp++] = (byte)iCat;
-			}
+			
 
 			//	TODO:  Optimize parameters.
 		}
 
 		/// <summary>
-		/// Internal memory resource.  Used for sorting y-values during the quantization procedure.  Indexed for every [iPoly].
+		/// Internal memory resource.  Used for sorting y-values during the optimization procedure.  Indexed for every [iPoly].
 		/// </summary>
 		protected ThreadLocal<int[]>[] localSortIdx;
+		/// <summary>
+		/// Internal memory resource.  Used for holding y-values during the optimization procedure.
+		/// </summary>
+		protected ThreadLocal<float[]> localY;
+		/// <summary>
+		/// The category label of each datum.
+		/// </summary>
+		protected byte[] catVec;
 		/// <summary>
 		/// This performs the quantization procedure for the data provided.
 		/// </summary>
@@ -310,7 +239,7 @@ namespace Morpe
 		/// <param name="cats">The category label of each datum.</param>
 		/// <param name="catWeight">The weight assigned to each category.</param>
 		/// <param name="targetCat">The target category for the y-values provided.</param>
-		protected Quantization quantize(float[] yVals, byte[] cats, double[] catWeight, byte targetCat)
+		protected Quantization quantize(float[] yVals, double[] catWeight, byte targetCat)
 		{
 			//	Prepare output
 			Quantization output = new Quantization(this.Nquantiles);
@@ -348,7 +277,7 @@ namespace Morpe
 			for (int iSamp = 0; iSamp < yVals.Length; iSamp++)
 			{
 				int iSort = idx[iSamp];
-				byte idCat = cats[iSort];
+				byte idCat = catVec[iSort];
 				wLast = wThis;
 				dwThis = catWeight[idCat];
 				wThis += dwThis;
@@ -382,7 +311,7 @@ namespace Morpe
 						while (++iSamp < yVals.Length)
 						{
 							iSort = idx[iSamp];
-							idCat = cats[iSort];
+							idCat = catVec[iSort];
 							dwThis = catWeight[idCat];
 							wThis += dwThis;
 							ySum += dwThis * yVals[iSort];

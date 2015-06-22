@@ -19,7 +19,7 @@ namespace Morpe
 		/// <param name="idx">The index into x[.] and cat[.] which rank-orders the sample in terms of increasing x.</param>
 		/// <param name="catWeight">The weight of each category on the accuracy.</param>
 		/// <returns>The unidimensional criterion.</returns>
-		public static UniCrit MaximumAccuracy(int targetCat, int[] cat, float[] x, int[] idx, double[] catWeight)
+		public static UniCrit MaximumAccuracy(int targetCat, byte[] cat, float[] x, int[] idx, double[] catWeight)
 		{
 			UniCrit output = new UniCrit();
 			output.MaximizeAccuracy(targetCat, cat, x, idx, catWeight);
@@ -51,7 +51,7 @@ namespace Morpe
 		/// <param name="x">The univariate value for each datum in the sample.</param>
 		/// <param name="idx">The index into x[.] and cat[.] which rank-orders the sample in terms of increasing x.</param>
 		/// <param name="catWeight">The weight of each category on the accuracy.</param>
-		public void MaximizeAccuracy(int targetCat, int[] cat, float[] x, int[] idx, double[] catWeight)
+		public void MaximizeAccuracy(int targetCat, byte[] cat, float[] x, int[] idx, double[] catWeight)
 		{
 			//double cwTotal = Static.Sum(catWeight);
 			int i, idCat;

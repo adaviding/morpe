@@ -32,6 +32,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CategorizedDataStats.cs" />
     <Compile Include="D.cs" />
     <Compile Include="MonotonicRegressor.cs" />
     <Compile Include="MonotonicRegressionType.cs" />
