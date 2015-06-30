@@ -17,10 +17,10 @@ MoRPE approximates the optimal classifier when category fragmentation is low, an
 I am planning to provide this software in multiple programming languages.  Keep in mind... I can only work on this project in my spare time, and I don't have much spare time.  It's funny how "work" prevents us from creating stuff that is economically valuable.
 
 ##C++
-Not ready.
+Not ready.  (Not close.)
 	
 ##C# 
-Not ready.  Expected to be ready on July 1, 2015.
+Not ready.  Expected to be ready on July 5, 2015.
 
 ##Java
 Not ready.

@@ -29,14 +29,14 @@ namespace Morpe
 		public float ParamShrinkFactor=2.0f;
 		/// <summary>
 		/// Must be greater than 0.  Optimization cannot change parameters less than the following magnitude for any [p,i]-th parameter.
-		//		[MAGNITUDE] = this.ParamScale[p,i] * ParamDiffMax
+		//		[MAGNITUDE] = ParamDiffMax * Morpe.Trainer.ParamScale[p][i]
 		/// </summary>
 		public float ParamDiffMax = 2.0f;
 		/// <summary>
 		/// Must be greater than 0.  Optimization cannot change parameters less than the following magnitude for any [p,i]-th parameter.
-		//		[MAGNITUDE] = this.ParamScale[p,i] * ParamDiffMin
+		//		[MAGNITUDE] = ParamDiffMin * Morpe.Trainer.ParamScale[p][i]
 		/// </summary>
-		public float ParamDiffMin = 0.01f;
+		public float ParamDiffMin = 0.005f;
 		/// <summary>
 		/// Determines how the optimization routine weights data from each category.
 		/// </summary>

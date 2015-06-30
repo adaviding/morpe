@@ -129,7 +129,7 @@ namespace Morpe
 			return new CategorizedData(this, targetCat);
 		}
 		/// <summary>
-		/// If the data consists of more than 2 cateogries, this function returns all "dual" view of the classification data.
+		/// If the data consists of more than 2 cateogries, this function returns all "dual" views of the classification data.
 		/// See <see cref="GetDual"/> for more information.
 		/// </summary>
 		/// <returns>All dual views of the data.</returns>
@@ -137,6 +137,7 @@ namespace Morpe
 		{
 			if (this.Ncats <= 2)
 				return null;
+
 			CategorizedData[] output = new CategorizedData[this.Ncats];
 			for (int iCat = 0; iCat < this.Ncats; iCat++)
 				output[iCat] = this.GetDual(iCat);
