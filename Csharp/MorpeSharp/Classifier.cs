@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 
 namespace Morpe
 {
@@ -59,9 +60,7 @@ namespace Morpe
 			this.Npoly = 1;
 			if (this.Ncats > 2)
 				this.Npoly = this.Ncats;
-
-			this.Params = Static.NewArrays<float>(this.Npoly, this.Coeffs.Ncoeffs);
-			Static.Copy(toCopy.Params, this.Params);
+			this.Params = Static.Copy<float>(toCopy.Params);
 
 			this.Quant = new Quantization[this.Npoly];
 			Quantization q;
@@ -94,7 +93,31 @@ namespace Morpe
 				this.Quant[0] = q.Copy();
 		}
 		/// <summary>
-		/// Classifies the multivariate coordinate.  (It should not be expanded.)
+		/// If the given classifier has the same number  of categories, spatial dimensions, and polynomial rank; then this
+		/// classifier will mimic it.
+		/// </summary>
+		/// <param name="toMimic">The classifier to be mimicked.</param>
+		public void Mimic(Classifier toMimic)
+		{
+			if (toMimic.Ncats != this.Ncats)
+				throw new ArgumentException("Cannot mimic another classifier having a different number of categories.");
+			if (toMimic.Ndims != this.Ndims)
+				throw new ArgumentException("Cannot mimic another classifier having a different number of spatial dimensions.");
+			if(toMimic.Coeffs.Rank != this.Coeffs.Rank)
+				throw new ArgumentException("Cannot mimic another classifier having a different polynomial rank.");
+
+			Static.Copy<float>(toMimic.Params, this.Params);
+
+			Quantization q;
+			for (int i = 0; i < this.Npoly; i++)
+			{
+				q = toMimic.Quant[i];
+				if (q != null)
+					this.Quant[i] = q.Copy();
+			}
+		}
+		/// <summary>
+		/// Classifies the multivariate coordinate.
 		/// </summary>
 		/// <param name="x">The multivariate coordiante.</param>
 		/// <returns>A vector of length <see cref="Ncats"/> giving the conditional probability of category membership for each category.
@@ -170,9 +193,10 @@ namespace Morpe
 		}
 		/// <summary>
 		/// If this classifier has more than 1 polynomial, this function returns the "dual" classifier consisting of 1 polynomial.
-		/// It is named "dual" because it deals with 2 categories.
+		/// It is named "dual" because it deals only with 2 categories.
 		/// </summary>
-		/// <param name="targetPoly">The target polynomial.</param>
+		/// <param name="targetPoly">The target polynomial, also the target category.  All other polynomials are discarded, and all
+		/// other categories are merged into 1.</param>
 		/// <returns>The dual classifier.</returns>
 		public Classifier GetDual(int targetPoly)
 		{
@@ -197,14 +221,13 @@ namespace Morpe
 		/// Trains the classifier by optimizing parameters based on the training data using default solver options.
 		/// </summary>
 		/// <param name="ops">Sets the <see cref="Trainer.Options"/> of the trainer.  If a value is not provided, default options are used.</param>
-		public Trainer Train(CategorizedData data, SolverOptions ops)
+		public Task<Trainer> Train(CategorizedData data, SolverOptions ops)
 		{
 			if (data == null)
 				throw new ArgumentException("Argument cannot be null.");
 
 			Trainer trainer = new Trainer(this);
-			trainer.Train(data, ops);
-			return trainer;
+			return trainer.Train(data, ops);
 		}
 	}
 }

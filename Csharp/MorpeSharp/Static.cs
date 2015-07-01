@@ -72,11 +72,34 @@ namespace Morpe
 			}
 		}
 		/// <summary>
+		/// Copies an array of arrays.
+		/// </summary>
+		/// <typeparam name="T">The array element type.</typeparam>
+		/// <param name="src">An array of arrays.</param>
+		/// <returns>An array of arrays with values equal to the input values.</returns>
+		public static T[][] Copy<T>(T[][] src)
+		{
+			if (src == null)
+				return null;
+			T[][] output = new T[src.Length][];
+			for (int iRow = 0; iRow < src.Length; iRow++)
+			{
+				T[] row = src[iRow];
+				if (row != null)
+				{
+					output[iRow] = new T[row.Length];
+					for (int iCol = 0; iCol < row.Length; iCol++)
+						output[iRow][iCol] = row[iCol];
+				}
+			}
+			return output;
+		}
+		/// <summary>
 		/// Copies the values from one grid of values to another.
 		/// </summary>
 		/// <param name="src">The source grid.</param>
 		/// <param name="dest">The destination grid.</param>
-		public static void Copy(float[][] src, float[][] dest)
+		public static void Copy<T>(T[][] src, T[][] dest)
 		{
 			if (src == null || dest == null)
 				return;
@@ -85,11 +108,11 @@ namespace Morpe
 
 			for (int iRow = 0; iRow < src.Length; iRow++)
 			{
-				float[] x = src[iRow];
-				if(x!=null)
+				T[] x = src[iRow];
+				if (x != null)
 				{
 					if (dest[iRow] == null || dest[iRow].Length < x.Length)
-						dest[iRow] = new float[x.Length];
+						dest[iRow] = new T[x.Length];
 					Array.Copy(x, dest[iRow], x.Length);
 				}
 			}
@@ -142,7 +165,7 @@ namespace Morpe
 				return (1.0 - iMod) * yTabulated[(int)i] + iMod * yTabulated[1 + (int)i];
 		}
 		/// <summary>
-		/// Initializes an array of arrays simulating a 2D arrow with nRows rows and nCols columns.
+		/// Initializes an array of arrays simulating a 2D array with nRows rows and nCols columns.
 		/// </summary>
 		/// <typeparam name="T">The array element type.</typeparam>
 		/// <param name="nRows">The number of rows.</param>
@@ -153,6 +176,21 @@ namespace Morpe
 			T[][] output = new T[nRows][];
 			for (int iRow = 0; iRow < nRows; iRow++)
 				output[iRow] = new T[nCols];
+			return output;
+		}
+		/// <summary>
+		/// Initializes an array of arrays simulating a 3D array with nPages pages, nRows rows, and nCols columns.
+		/// </summary>
+		/// <typeparam name="T">The array element type.</typeparam>
+		/// <param name="nPages">The number of pages.</param>
+		/// <param name="nRows">The number of rows.</param>
+		/// <param name="nCols">The number of columns.</param>
+		/// <returns>An array of arrays of arrays.</returns>
+		public static T[][][] NewArrays<T>(int nPages, int nRows, int nCols)
+		{
+			T[][][] output = new T[nPages][][];
+			for (int iPage = 0; iPage < nPages; iPage++)
+				output[iPage] = NewArrays<T>(nRows, nCols);
 			return output;
 		}
 		/// <summary>

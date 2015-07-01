@@ -9,6 +9,7 @@ namespace Morpe
 	{
 		/// <summary>
 		/// This is called to construct a new instance of the <see cref="Morpe.Options"/> class.
+		/// </summary>
 		public SolverOptions() { }
 		/// <summary>
 		/// Optimization halts when the change in conditional entropy is less than this amount.  This number must be positive.  Default = 0.005.
