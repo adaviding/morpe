@@ -20,7 +20,7 @@ I am planning to provide this software in multiple programming languages.  Keep 
 Not ready.  (Not close.)
 	
 ##C# 
-Not ready.  Expected to be ready on July 5, 2015.
+Not ready.  Expected to be ready on August 1, 2015.
 
 ##Java
 Not ready.
