@@ -19,7 +19,11 @@ function out = Mcl_Poly_Tngl_Ctor(Xcell, Xtrans, Rank, ForceEqualPriors, Nquanti
 %	The number of dimension pairs.
 % out.DimPairs (int32 2D array: Npairs * 2)
 %	Each iPair row out.DimPairs(iPair,:) lists the pair of dimensions considered.
-% out.Classifiers (Mcl_Poly matlab structure vector: Npairs)
+% out.Ndims (int32 scalar)
+%	The number of spatial dimensions.  Also equal to the number of univariate classifiers.
+% out.UniClassifier (Mcl_Poly matlab structure vector: Ndims)
+%	A classifier constructed for each single dimensions by calling the constructor Mcl_Poly_Ctor.
+% out.PairClassifier (Mcl_Poly matlab structure vector: Npairs)
 %	A classifier constructed for each pair of dimensions by calling the constructor Mcl_Poly_Ctor.
 %--------------------------------------------------------------------------------------------------------------------------
 

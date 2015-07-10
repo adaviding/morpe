@@ -28,6 +28,26 @@
 	#define null 0
 #endif
 
+//	Returns the entry (a,b) of the Pascal matrix (which is symmetric).  Output is equal to (a+b)! / a / b
+int Pascal(int a, int b)
+{
+	int aa = a;
+	int bb = b;
+	if(a<b)
+	{
+		aa = b;  // aa = max(a,b)
+		bb = a;  // bb = min(a,b)
+	}
+	int c = a+b;
+	int output = 1;
+	int i;
+	for (i = aa + 1; i <= c; i++)
+		output *= i;
+	for (i = 2; i <= bb; i++)
+		output /= i;
+	return output;
+}
+
 //	Returns the total number of polynomial terms (coefficients) not including the additive constant for a polynomial of rank
 //	Rank defined over an Ndims dimensional space.  If N is not null, it must point to a pre-allocated vector of length Rank.
 //	On output, each N[i] will contain the number of (i+1)-order terms for a polynomial defined over an Ndims-dimensional space.
@@ -39,7 +59,7 @@
 int Ncoeff(int* N, int Rank, int Ndims)
 {	
 	//	Indexors
-	int i,j;
+	int i;
 	//	If 0-dimensionality, set everything to empty.
 	if( Ndims<=0 )
 	{
@@ -61,55 +81,25 @@ int Ncoeff(int* N, int Rank, int Ndims)
 			N[0] = Ndims;
 		return Ndims;
 	}
-	//	Initialize output
-	int output = 0;
-	//	A row of Pascal's symmetric matrix
-	int* rTngl = new int[Rank+1];
-
-	//	The element S(Ndims, Rank) of the symmetric Pascal Matrix S, minus 1, provides the output of this function.
-	//	The output of this function is S(Ndims,Rank)-1 where
-	//		S is the symmetric Pascal matrix and indices are 0-based indexed (row, column)
-	//	Output vector N is filled by the elements of the preceding row (not including the element from the first column).
-	//	
-	//				0	1	2	3	4	5	6	7	8	9
-	//							Rank of Tensor
-	//	0			1	1	1	1	1	1	1	1	1	1
-	//	1			1	2	3	4	5	6	7	8	9	10
-	//	2	Ndims	1	3	6	10	15	21	28	36	45	55
-	//	3	of		1	4	10	20	35	56	84	120	165	220
-	//	4	Space	1	5	15	35	70	126	210	330	495	715
-	//	5			1	6	21	56	126	252	462	924	1716
-
-	//	Initialize at first row of matrix which gives N for (Ndims==1) --> (1,1,1,...)
-	for( j=0; j<=Rank; j++ )
-		rTngl[j] = 1;
-
-	//	Sum to compute subsequent the rows until the row of Pascal's matrix can be used to fill in N.
-	for( i=2; i<=Ndims; i++ ) // Begin from 2-space (i==1)
-	{
-		//	At this point, rTngl represents the i-th row  (0-based)
-		for( j=1; j<=Rank; j++ )
-			rTngl[j] += rTngl[j-1];
-		//	Now rTngl represents the (i+1)-th row (0-based)
-	}
-
+	//	Compute the number of inhomogeneous polynomial terms for the given rank and dimensionality.
+	int output = Pascal(Rank,Ndims);
+	
+	//	Subtract 1 to remove the 0-th order term.
+	output--;
+	
+	//mexPrintf("Pascal(%i,$i)=%i\n",Rank,Ndims,output);
+	
 	//	Fill output vector N and sum to compute output.
 	if (N != null)
 	{
-		for( i=0; i<Rank; )
+		N[0] = Ndims;  //	There are Ndims linear terms
+		//mexPrintf("N[0]=%i\n", Ndims);
+		for( i=1; i<Rank; i++)
 		{
-			N[i] = rTngl[i+1];
-			output += rTngl[++i];
+			N[i] = Pascal(i+1,Ndims-1);
+			//mexPrintf("N[%i]=%i\n", i, N[i]);
 		}
 	}
-	else
-	{
-		for( i=0; i<Rank; )
-			output += rTngl[++i];
-	}
-
-	//	Delete the memory
-	delete rTngl;
 
 	//	Return value.
 	return output;

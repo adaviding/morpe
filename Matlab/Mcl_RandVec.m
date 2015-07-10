@@ -1,37 +1,22 @@
-function out = Mcl_RandVec(setSize)
+function out = Mcl_RandVec(setSize, subSetSize)
 
-%	This function takes the set [1, 2, ..., setSize] and randomizes its order.
-%	This function is called with the syntax Mcl_RandVec(setSize).
-%	This function returns a vector of length setSize with entries in the range [1, setSize].
+%function out = Mcl_RandVec(setSize, subSetSize)
+% If nargin <= 1
+%	This function returns a vector of length setSize with elements equal to
+%    a random ordering of the set {1, ..., setSize}.
+% If nargin>1
+%   This function returns a vector of length subSetSize containing the
+%   first subSetSize integers sampled from the randomly ordered set {1, ..., setSize}.
 
-pickFrom = [1:setSize];
-out = zeros(1,setSize);
+sorted = sortrows([(1:setSize)',rand(setSize,1)], 2);
+out = sorted(:,1);
 
-index = 0;
-
-pickFromSize = setSize;
-
-while pickFromSize > 0
-   
-   index = index + 1;
-   
-   randomIndex = ceil(rand*pickFromSize);
-      
-   out(index) = pickFrom(randomIndex);
-   
-   if randomIndex ~= 1
-      tempPickFrom = pickFrom(1:(randomIndex-1));
-      if randomIndex ~= pickFromSize
-         tempPickFrom = [tempPickFrom, pickFrom((randomIndex+1):pickFromSize)];
-      end
-   elseif pickFromSize > 1
-      tempPickFrom = pickFrom((randomIndex+1):pickFromSize);
-   else
-      tempPickFrom = [];
-   end
-   
-   pickFrom = tempPickFrom;
-      
-   pickFromSize = pickFromSize - 1;
-   
+if nargin > 1
+    if subSetSize==0
+        out = [];
+    elseif subSetSize <= setSize && subSetSize>=0
+        out = out(1:subSetSize);
+    else
+        error('Incorrect arguments.  The value of subSetSize must be non-negative and not greater than setSize.');
+    end
 end

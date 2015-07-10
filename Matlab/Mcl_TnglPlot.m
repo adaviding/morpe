@@ -124,7 +124,7 @@ end
 if isempty(ops.SubplotRects) | ischar(ops.SubplotRects)
     % last argument is [Left, Top, Right, Bottom]
 	if nDims<=3
-		ops.SubplotRects = Mcl_SubplotRects(nDims,nDims,0.07,0.07,[8/ops.FigureSizeXy(1), 8/ops.FigureSizeXy(2), 10/ops.FigureSizeXy(1), 24/ops.FigureSizeXy(2)]);
+		ops.SubplotRects = Mcl_SubplotRects(nDims,nDims,0.07,0.07,[8/ops.FigureSizeXy(1), 8/ops.FigureSizeXy(2), 10/ops.FigureSizeXy(1), 34/ops.FigureSizeXy(2)]);
 	else
 		ops.SubplotRects = Mcl_SubplotRects(nDims,nDims,0.035,0.035,[4/ops.FigureSizeXy(1), 4/ops.FigureSizeXy(2), 10/ops.FigureSizeXy(1), 24/ops.FigureSizeXy(2)]);
 	end
@@ -277,14 +277,14 @@ for iRow=1:nDims
 	end
 	thx = cell(size(hx));
 	for iCat = 1:nCats
-		thx{iCat} = interp1(bins, hx{iCat}, xTape, 'cubic');
+		thx{iCat} = interp1(bins, hx{iCat}, xTape, 'pchip');
 		plot(xTape, thx{iCat}*0.9, 'Color', ops.Colors{iCat}, 'LineWidth', ops.LineWidth);
 	end
 	for iCat = nCats:-1:1
 		plot(xTape, thx{iCat}*0.9, 'Color', ops.Colors{iCat}, 'LineWidth', 1);
 	end
 	pixHeight = lbwh(4)*ops.FigureSizeXy(2);
-	ax = [ ops.Axes(iRow).T_Lims(1), ops.Axes(iRow).T_Lims(2), 0, min(2,pixHeight/(pixHeight-2*(6+ops.FontSize_Acc))) ];
+	ax = [ ops.Axes(iRow).T_Lims(1), ops.Axes(iRow).T_Lims(2), 0, max(2,pixHeight/(pixHeight-2*(6+ops.FontSize_Acc))) ];
 
 	axis(ax);
 	set(gca, 'XTickMode', 'manual');
@@ -388,7 +388,7 @@ if ~isempty(ops.FullClassifier) && nDims>1
 		tProb = cell(nCats,1);
 		for iCat=1:nCats
 			%plot([0, binCenters, 1], 0.8*[dProb(iCat,1), dProb(iCat,:), dProb(iCat,size(dProb,2))],'LineWidth',ops.LineWidth,'Color',ops.Colors{iCat});
-			tProb{iCat} = interp1([0, binCenters, 1], [dProb(iCat,1), dProb(iCat,:), dProb(iCat,size(dProb,2))], tBinCenters, 'cubic');
+			tProb{iCat} = interp1([0, binCenters, 1], [dProb(iCat,1), dProb(iCat,:), dProb(iCat,size(dProb,2))], tBinCenters, 'pchip');
 			plot(tBinCenters, tProb{iCat},'LineWidth',ops.LineWidth,'Color',ops.Colors{iCat});
 		end
 		for iCat=(nCats:-1:1)
@@ -455,7 +455,9 @@ for iRow=1:nDims
 			hx{iCat} = double(Mcl_TruncHist2(Xcell{iCat}(:,iCol), Xcell{iCat}(:,iRow), ax, ops.HistSize_2d, ops.BlurLevel  ));
 			%	Truncates very large pixels
 			[q, qi] = Mcl_Quantiles(hx{iCat}(:), prod(ops.HistSize_2d-1)/prod(ops.HistSize_2d)-0.01);
-			hx{iCat}(qi{2}) = q;
+            if q > 0
+                hx{iCat}(qi{2}) = q;
+            end
 			hx{iCat} = hx{iCat}/(max(hx{iCat}(:)));
 			%	Build rgb table
 			if iCat==1

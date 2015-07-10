@@ -83,8 +83,11 @@ TNGL_DISPMOD = 500;
 FULL_DISPMOD = 2500;
 TNGL_NTRY =	1; %1+RANK;
 FULL_NTRY = 2; %2+RANK;
-nPoly = 3;
 nCats = numel(Xtrain);
+nPoly = nCats;
+if(nPoly==2)
+	nPoly=1;
+end
 
 %=================================================================================
 % THE FOLLOWING CODE IS WHERE THE CLASSIFIER IS ACTUALLY FIT
@@ -224,12 +227,12 @@ for iCat=1:nCats
 end
 disp(['Testing  [h | Acc] = [' num2str(TnglPlot.FullClassifier_Test.hTest') '   |   ' num2str(TnglPlot.FullClassifier_Test.AccTest') ']']);
 
-%	The data is de-expanded so that you don't store full polynomial expansions (which can be easily re-created).
+%	The data is de-expanded so that you don't store full polynomial expansions (which can be easily re-expanded).
 TnglPlot.FullClassifier_Test  = Mcl_Poly_Compress(TnglPlot.FullClassifier_Test);
 % --------------------------------------------------------------------------------
 
 %=================================================================================
 % SAVE Everything (so you don't have to train and test again.  Quickly create a new plot by loading this structure and
-%	calling the funciton "TnglPlot".
+%	calling the function "Mcl_TnglPlot(Xtrain, TnglPlot)".
 % --------------------------------------------------------------------------------
 save TnglPlot;
