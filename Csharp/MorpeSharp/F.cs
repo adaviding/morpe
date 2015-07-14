@@ -5,6 +5,9 @@ using System.Text;
 
 namespace Morpe
 {
+    /// <summary>
+    /// Static operations and constants for single-precision floating point numbers.
+    /// </summary>
 	public class F
 	{
 		/// <summary>

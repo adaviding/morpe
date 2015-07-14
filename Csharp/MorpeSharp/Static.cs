@@ -307,7 +307,7 @@ namespace Morpe
 					if (i != j)
 					{
 						//	Random rotation angle.
-						theta = Rand.NextDouble() * D.TwoPi; // planar rotation counterclockwise by theta
+						theta = Rand.NextDouble() * D.Pi_2; // planar rotation counterclockwise by theta
 						c = Math.Cos(theta);	// R(i,i) and  R(j,j)
 						s = Math.Sin(theta);	// R(j,i) and -R(i,j)
 
