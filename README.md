@@ -6,6 +6,11 @@ The classification problem is commonly encountered when a finite sample of data 
 
 Ing, AD (2014) MoRPE:  A Probabilistic Classifier.  *GitHub*.  doi:10.5281/zenodo.13235.  Retrieved from https://github.com/adaviding/Morpe/releases/tag/0.1.
 
+#Project Status
+The Matlab codebase is functioning, but it is not user friendly.  (See the Matlab notes below.)
+
+I am slowly getting together a C# code base (in my spare time).  I am hoping to finish by the end of July.  (See the C# notes below.)  Once C# is done, I will create a Java version.
+
 #Recommended Usage
 MoRPE is one of the best classifiers available in the public domain (perhaps *the* best).  However, this does not mean that it can be applied blindly to any data set.  Before MoRPE is applied, the analyst must design a feature space that minimizes category fragmentation (as discussed in the paper).  This means that the analyst must spend time visualizing the data in many possible feature spaces, and carefully select the set of features that appears to minimize fragmentation.  The analyst doesn't need to be perfect, but they should make a decent effort and then MoRPE will handle the rest (as it is designed to do).
 
