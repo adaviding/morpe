@@ -51,6 +51,7 @@
     <Compile Include="MonotonicRegressor.cs" />
     <Compile Include="MonotonicRegressionType.cs" />
     <Compile Include="OptimizationMeasurement.cs" />
+    <Compile Include="PreOptimizationAnalysis.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="CategorizedData.cs" />
     <Compile Include="Draw\Rect.cs" />

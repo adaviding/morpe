@@ -64,6 +64,10 @@ namespace Morpe
 		/// </summary>
 		public double[] Xscale;
 		/// <summary>
+		/// The median of the unexapnded data, then expanded.
+		/// </summary>
+		public float[] Xmedian;
+		/// <summary>
 		/// Returns true if the trainer is currently training a classifier.
 		/// </summary>
 		public bool IsTraining { get { return this.trainerIsRunning; } }
@@ -152,11 +156,21 @@ namespace Morpe
 				float[] xVec = new float[data.Ntotal];
 				int[] idxVec = new int[data.Ntotal];
 				int i025 = (int)(0.5 + 0.025 * (double)(data.Ntotal - 1));
-				int i975 = (int)(0.5 + 0.025 * (double)(data.Ntotal - 1));
+				int i500 = (int)(0.5 + 0.500 * (double)(data.Ntotal - 1));
+				int i975 = (int)(0.5 + 0.975 * (double)(data.Ntotal - 1));
 				for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.Ncoeffs; iCoeff++)
 				{
 					//	Quantiles determine the parameter scale.
 					Static.FillSeries(idxVec);
+					iDatum = 0;
+					for (int iCat = 0; iCat < data.Ncats; iCat++)
+					{
+						int nSamp = data.Neach[iCat];
+						for (int iSamp = 0; iSamp < nSamp; iSamp++)
+						{
+							xVec[iDatum++] = data.X[iCat][iSamp][iCoeff];
+						}
+					}
 					Static.QuickSortIndex(idxVec, xVec, 0, xVec.Length - 1);
 					scale = xVec[idxVec[i975]] - xVec[idxVec[i025]];
 					this.Xscale[iCoeff] = scale;
@@ -164,11 +178,16 @@ namespace Morpe
 
 					if (ops.InitializeParams)
 					{
+						//	TODO:  This would work better if the median of x was subtracted out before the polynomial expansion was performed.
+						//	I need to compute the median and then perform manual expansions.
+
 						//	Get univariate classification criteria to get a first-order clue about the saliency of each feature.
 						for (int iCat = 0; iCat < data.Ncats; iCat++)
 							Xcrits[iCat][iCoeff] = UniCrit.MaximumAccuracy(iCat, catVec, xVec, idxVec, this.CatWeights);
 					}
 				}
+				xVec = null;
+
 
 				//-----------------------
 				//	Compute initial params.
@@ -250,6 +269,7 @@ namespace Morpe
 				//-----------------------
 				//	Construct the classifiers based on parameters already specified.
 				//-----------------------
+				Static.FillSeries(idxVec);
 				throw new ApplicationException("TO DO");
 
 				//-----------------------
@@ -276,9 +296,6 @@ namespace Morpe
 				this.trainerIsRunning = false;
 			}
 		}
-		/// <summary>
-		/// The category label of each datum.
-		/// </summary>
 		
 		/// <summary>
 		/// This performs the quantization procedure for the data provided.
@@ -301,6 +318,10 @@ namespace Morpe
 			output.Pmin = 0.5 / wPerBin;
 			output.Pmax = 1.0 - output.Pmin;
 
+			//	IMPORTANT PERFORMANCE NOTE:
+			//	Each time we enter this function, the sort index is preserved from the prior function call.
+			//	This typically leads to faster sort times during optimization because typically the list is sorted
+			//	already (or partially sorted).
 			Static.QuickSortIndex(yIdx, yVals, 0, yVals.Length);
 
 			int iBin = 0;  // The current bin.
