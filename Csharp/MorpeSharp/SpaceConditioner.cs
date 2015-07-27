@@ -82,7 +82,7 @@ namespace Morpe
                     if (isOdd)
                         output.Medians[iCat][iCol] = temp = data.X[iCat][iMed][iCol];
                     else
-                        output.Medians[iCat][iCol] = temp = (data.X[iCat][iMed][iCol - 1] + data.X[iCat][iMed][iCol]) / 2.0f;
+                        output.Medians[iCat][iCol] = temp = (data.X[iCat][iMed-1][iCol] + data.X[iCat][iMed][iCol]) / 2.0f;
                     output.AvgMedian[iCol] += temp;
                 }
             }
