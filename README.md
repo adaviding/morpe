@@ -25,10 +25,14 @@ I am planning to provide this software in multiple programming languages.  Keep 
 Not ready.  (Not close.)
 	
 ##C# 
-Not ready.  Expected to be ready on August 1, 2015.
+Not ready.  Expected to be ready on September 1, 2015.
+
+Once ready, the optimization algorithm will feature major design improvements over its Matlab counterpart.
 
 ##Java
 Not ready.
+
+I will begin this after the C# version is finished.  This version will begin as a clone of the C# version, but we are thinking about optimizing the Java version for Apache Spark.
 
 ##Matlab
 This is the original implementation of MoRPE.  **This code is filthy.**  I invented MoRPE almost by accident because nothing else seemed to fit the data I collected for my dissertation.  I tried many different things before MoRPE emerged from the chaos, and so this code is very chaotic.  There is plenty of dead code here, and the C code is almost impossible to understand (this was my first time writing anything in C or C++).

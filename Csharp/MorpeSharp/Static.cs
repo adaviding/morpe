@@ -257,6 +257,39 @@ namespace Morpe
 			if (i < right)
 				QuickSortIndex(idx, x, i, right);
 		}
+        /// <summary>
+        /// Quicksorts an indexed table by an individual column by changing the order of the indices and not the table itself.
+        /// </summary>
+        /// <param name="idx">Zero-based indices into the table x.  On output, these indices are reordered so that x[idx][iCol] is sorted.</param>
+        /// <param name="x">The table to be sorted.  The elements are not changed on output.</param>
+        /// <param name="iCol">The zero-bbased column index which determines the rank order of rows within the table.</param>
+        /// <param name="left">A zero-based index identifying the lowest row of idx where sorting is conducted.</param>
+        /// <param name="right">A zero-based index identifying the highest row of idx where sorting is conducted.</param>
+        public static void QuickSortIndex(int[] idx, float[][] x, int iCol, int left, int right)
+        {
+            int i = left, j = right;
+            int tmp;
+            double pivot = x[idx[(left + right) / 2]][iCol];
+
+            //	Partition
+            while (i <= j)
+            {
+                while (x[idx[i]][iCol] < pivot) i++;
+                while (x[idx[j]][iCol] > pivot) j--;
+                if (i <= j)
+                {
+                    tmp = idx[i];
+                    idx[i++] = idx[j];
+                    idx[j--] = tmp;
+                }
+            }
+
+            //	Recursion
+            if (left < j)
+                QuickSortIndex(idx, x, iCol, left, j);
+            if (i < right)
+                QuickSortIndex(idx, x, iCol, i, right);
+        }
 		/// <summary>
 		/// Returns the entry (a,b) of the Pascal matrix (which is symmetric).  (a+b)! / a / b
 		/// </summary>

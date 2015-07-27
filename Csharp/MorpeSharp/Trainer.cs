@@ -48,35 +48,24 @@ namespace Morpe
 		/// </summary>
 		public int Nquantiles = 15;
 		/// <summary>
-		/// The scale of each polynomial coefficient.  The scales are the same across all polynomials.
-		/// </summary>
-		public float[] ParamScale;
-		/// <summary>
 		/// The initial values of the polynomial coefficients.  Indexed as [iPoly][iCoeff].
 		/// </summary>
 		public float[][] ParamInit;
-		/// <summary>
-		/// Univariate classifiers for each category and each column of data.  Indexed as [iCat][iCoeff].
-		/// </summary>
-		public UniCrit[][] Xcrits = null;
-		/// <summary>
-		/// The scale of the training data (for each column of data).
-		/// </summary>
-		public double[] Xscale;
-		/// <summary>
-		/// The median of the unexapnded data, then expanded.
-		/// </summary>
-		public float[] Xmedian;
 		/// <summary>
 		/// Returns true if the trainer is currently training a classifier.
 		/// </summary>
 		public bool IsTraining { get { return this.trainerIsRunning; } }
 		private bool trainerIsRunning = false;
+        /// <summary>
+        /// A container for analyses performed prior to optimization.
+        /// </summary>
+        public PreOptimizationAnalysis Analysis;
 		/// <summary>
 		/// Trains the classifier by optimizing parameters based on the training data using specified solver options.
 		/// This can only be called once.
 		/// </summary>
-		/// <param name="data">The training data.</param>
+		/// <param name="data">The training data.
+        /// WARNING:  In order to save memory, this data is altered in palce (instead of copying a new object).</param>
 		/// <param name="ops">Sets the member variable <see cref="Classifier.Options"/>.  If a value is not provided, default options are used.</param>
 		public async Task<Trainer> Train(CategorizedData data, SolverOptions ops)
 		{
@@ -126,16 +115,18 @@ namespace Morpe
 					throw new ApplicationException("Unhandled weighting rule.");
 
 				//-----------------------
-				//	Perform the polynomial expansion of the data if necessary.
+				//	Condition the data and perform a polynomial expansion.
 				//-----------------------
-				if (data.X[0][0].Length < this.Classifier.Instance.Coeffs.Ncoeffs)
-					data.Expand(this.Classifier.Instance.Coeffs);
+                this.Analysis = new PreOptimizationAnalysis();
+                this.Analysis.Conditioner = SpaceConditioner.Measure(data);
+                this.Analysis.Conditioner.Condition(data);
+                data.Expand(this.Classifier.Instance.Coeffs);
 
-				this.ParamScale = new float[this.Classifier.Instance.Coeffs.Ncoeffs];
-				this.Xscale = new double[this.Classifier.Instance.Coeffs.Ncoeffs];
+				this.Analysis.ParamScale = new float[this.Classifier.Instance.Coeffs.Ncoeffs];
+                this.Analysis.Xscale = new double[this.Classifier.Instance.Coeffs.Ncoeffs];
 
 				if (ops.InitializeParams)
-					Xcrits = Static.NewArrays<UniCrit>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
+					this.Analysis.Crits = Static.NewArrays<UniCrit>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
 
 				//-----------------------
 				//	Prepare category labels for each datum.
@@ -173,8 +164,8 @@ namespace Morpe
 					}
 					Static.QuickSortIndex(idxVec, xVec, 0, xVec.Length - 1);
 					scale = xVec[idxVec[i975]] - xVec[idxVec[i025]];
-					this.Xscale[iCoeff] = scale;
-					this.ParamScale[iCoeff] = (float)(1.0 / scale);
+                    this.Analysis.Xscale[iCoeff] = scale;
+                    this.Analysis.ParamScale[iCoeff] = (float)(1.0 / scale);
 
 					if (ops.InitializeParams)
 					{
@@ -183,7 +174,7 @@ namespace Morpe
 
 						//	Get univariate classification criteria to get a first-order clue about the saliency of each feature.
 						for (int iCat = 0; iCat < data.Ncats; iCat++)
-							Xcrits[iCat][iCoeff] = UniCrit.MaximumAccuracy(iCat, catVec, xVec, idxVec, this.CatWeights);
+							this.Analysis.Crits[iCat][iCoeff] = UniCrit.MaximumAccuracy(iCat, catVec, xVec, idxVec, this.CatWeights);
 					}
 				}
 				xVec = null;
@@ -211,27 +202,27 @@ namespace Morpe
 						{
 							double tAcc = 0.5 *
 								(
-									Math.Max(0.0, Xcrits[0][iCoeff].Accuracy - accMin[0])
+									Math.Max(0.0, this.Analysis.Crits[0][iCoeff].Accuracy - accMin[0])
 									+
-									Math.Max(0.0, Xcrits[1][iCoeff].Accuracy - accMin[1])
+                                    Math.Max(0.0, this.Analysis.Crits[1][iCoeff].Accuracy - accMin[1])
 								);
 							tAcc /= (1.0 - 0.5 * (accMin[0] + accMin[1]) + invNtotal);
-							if (Xcrits[0][iCoeff].TargetUpper)
-								this.ParamInit[0][iCoeff] = (float)tAcc * this.ParamScale[iCoeff];
+                            if (this.Analysis.Crits[0][iCoeff].TargetUpper)
+								this.ParamInit[0][iCoeff] = (float)tAcc * this.Analysis.ParamScale[iCoeff];
 							else
-								this.ParamInit[0][iCoeff] = -(float)tAcc * this.ParamScale[iCoeff];
+                                this.ParamInit[0][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
 
 						}
 						else
 						{
 							for (int iPoly = 0; iPoly < this.Classifier.Instance.Npoly; iPoly++)
 							{
-								double tAcc = Math.Max(0.0, Xcrits[iPoly][iCoeff].Accuracy - accMin[iPoly]);
+                                double tAcc = Math.Max(0.0, this.Analysis.Crits[iPoly][iCoeff].Accuracy - accMin[iPoly]);
 								tAcc /= (1.0 - accMin[iPoly] + invNtotal);
-								if (Xcrits[iPoly][iCoeff].TargetUpper)
-									this.ParamInit[iPoly][iCoeff] = (float)tAcc * this.ParamScale[iCoeff];
+                                if (this.Analysis.Crits[iPoly][iCoeff].TargetUpper)
+									this.ParamInit[iPoly][iCoeff] = (float)tAcc * this.Analysis.ParamScale[iCoeff];
 								else
-									this.ParamInit[iPoly][iCoeff] = -(float)tAcc * this.ParamScale[iCoeff];
+                                    this.ParamInit[iPoly][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
 							}
 						}
 					}
@@ -415,7 +406,7 @@ namespace Morpe
 		/// <summary>
 		/// Generates an orthonormal basis of scaled random deviates based on a proper orthonormal matrix and the scale of each parameter.
 		/// </summary>
-		/// <returns>The scaled orthonormal basis of random deviates.</returns>
+		/// <returns>The orthonormal basis of random deviates, with entries multiplied by appropriate scale factors.</returns>
 		protected float[][][] randomDeviates()
 		{
 			int nParams = this.Classifier.Instance.Npoly * this.Classifier.Instance.Coeffs.Ncoeffs;
@@ -428,7 +419,7 @@ namespace Morpe
 					for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.Ncoeffs; iCoeff++)
 					{
 						int j = iPoly * this.Classifier.Instance.Coeffs.Ncoeffs + iCoeff;
-						output[iBasis][iPoly][iCoeff] = (float)(ortho[iBasis, j] * this.ParamScale[iCoeff]);
+						output[iBasis][iPoly][iCoeff] = (float)(ortho[iBasis, j] * this.Analysis.ParamScale[iCoeff]);
 					}
 				}
 			}
@@ -458,7 +449,7 @@ namespace Morpe
 			{
 				for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.Ncoeffs; iCoeff++)
 				{
-					output[iPoly][iCoeff] *= this.ParamScale[iCoeff] * norm;
+					output[iPoly][iCoeff] *= this.Analysis.ParamScale[iCoeff] * norm;
 				}
 			}
 			return output;
