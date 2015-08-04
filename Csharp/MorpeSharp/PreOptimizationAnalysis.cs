@@ -15,7 +15,11 @@ namespace Morpe
         /// <summary>
         /// The space conditioner.
         /// </summary>
-        public SpaceConditioner Conditioner;
+        public SpatialConditioner Conditioner;
+        /// <summary>
+        /// Measures the spatial condition.  Contains extra information.
+        /// </summary>
+        public SpatialConditionMeasurer ConditionMeasurer;
         /// <summary>
         /// Unidimensional accuracy-maximizing criteria.
         /// </summary>
@@ -27,10 +31,10 @@ namespace Morpe
         /// <summary>
         /// The scale of each polynomial coefficient.  The scales are the same across all polynomials.
         /// </summary>
-        public float[] ParamScale;        
+        public float[] ParamScale;
         /// <summary>
         /// The scale of the training data (for each column of data).
         /// </summary>
-        public double[] Xscale;
+        public float[] Xscale;
 	}
 }

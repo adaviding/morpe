@@ -11,29 +11,33 @@ namespace Morpe
 		/// <summary>
 		/// The number of categories.
 		/// </summary>
-		public readonly int Ncats;
+		public int Ncats;
 		/// <summary>
 		/// The spatial dimensionality.
 		/// </summary>
-		public readonly int Ndims;
+		public int Ndims;
 		/// <summary>
 		/// The number of polynomials.
 		/// </summary>
-		public readonly int Npoly;
+		public int Npoly;
 		/// <summary>
 		/// Allows a multivariate polynomial to be constructed.
 		/// </summary>
-		public readonly Poly Coeffs;
+		public Poly Coeffs;
+        /// <summary>
+        /// The origin of each parameter.  Used to shift feature vectors prior to polynomial expansion.
+        /// </summary>
+        public float[] Origin;
 		/// <summary>
 		/// The model parameters.  Each row specifies coefficients for a polynomial, so this array has <see cref="Npoly"/>
 		/// rows and <see cref="Coeffs"/>.Ncoeff columns (See <see cref="Poly.Ncoeff"/>).
 		/// </summary>
-		public readonly float[][] Params;
+		public float[][] Params;
 		/// <summary>
 		/// Holds data related to the quantization of the decision variable (for each polynomial) throughout the training sample.
 		/// Creates a monotonic mapping from the decision variable to a probability of category membership;
 		/// </summary>
-		public readonly Quantization[] Quant;
+		public Quantization[] Quant;
 		/// <summary>
 		/// Initializes an untrained instance of the <see cref="Morpe.Classifier"/> class.  The classifier should be trained
 		/// (see <see cref="Train"/>) before it can be used for classification.

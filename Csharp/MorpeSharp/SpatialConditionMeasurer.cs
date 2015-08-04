@@ -7,14 +7,14 @@ using System.Threading.Tasks;
 namespace Morpe
 {
     /// <summary>
-    /// The SpaceConditioner is measured at the beginning of optimization, prior to performing the first polynomial expansion on the training data.
+    /// The SpatialConditionMeasurer is measured at the beginning of optimization, prior to performing the first polynomial expansion on the training data.
     /// It is used to condition the feature space.  In other words, it is used to ensure that the feature space is centered on 0 and has
     /// spread of 1 in all directions.  (The polynomial coefficients are defined for the conditioned feature space.)
     /// </summary>
-    public class SpaceConditioner
+    public class SpatialConditionMeasurer
     {
         /// <summary>
-        /// The average medain of the unconditioned training data.  This variable has this.Ndims columns. It is the average of this.Medians.
+        /// The average medain of the unconditioned training data.  This variable has this.Ndims columns.  It is the average of this.Medians.
         /// </summary>
         public float[] AvgMedian;
         /// <summary>
@@ -45,7 +45,7 @@ namespace Morpe
         /// </summary>
         /// <param name="nCats">The number of categories.</param>
         /// <param name="nDims">The number of spatial dimensions (unexpanded).</param>
-        public SpaceConditioner(int nCats, int nDims)
+        public SpatialConditionMeasurer(int nCats, int nDims)
         {
             this.Ncats = nCats;
             this.Ndims = nDims;
@@ -59,11 +59,11 @@ namespace Morpe
         /// </summary>
         /// <param name="data">The training data.</param>
         /// <returns>The space conditioner which has been measured for the training data.</returns>
-        public static SpaceConditioner Measure(CategorizedData data)
+        public static SpatialConditionMeasurer Measure(CategorizedData data)
         {
             if (data == null)
                 return null;
-            SpaceConditioner output = new SpaceConditioner(data.Ncats, data.Ndims);
+            SpatialConditionMeasurer output = new SpatialConditionMeasurer(data.Ncats, data.Ndims);
 
             float temp;
 
@@ -112,20 +112,12 @@ namespace Morpe
             }
             return output;
         }
-        public void Condition(CategorizedData data)
+        public SpatialConditioner Conditioner()
         {
-            for (int iCat = 0; iCat < data.Ncats; iCat++)
-            {
-                for (int iRow = 0; iRow < data.Neach[iCat]; iRow++)
-                {
-                    float[] xOld = data.X[iCat][iRow];
-                    float[] xNew = new float[data.Ndims];
-                    for(int iDim=0; iDim<data.Ndims; iDim++)
-                    {
-                        xNew[iDim] = (xOld[iDim] - this.AvgMedian[iDim]) / this.Spread[iDim];
-                    }
-                }
-            }
+            SpatialConditioner output = new SpatialConditioner(this.Ndims);
+            Array.Copy(this.AvgMedian, output.Origin, this.Ndims);
+            Array.Copy(this.Spread, output.Spread, this.Ndims);
+            return output;
         }
     }
 }
