@@ -24,10 +24,10 @@ namespace Morpe
 		/// Allows a multivariate polynomial to be constructed.
 		/// </summary>
 		public Poly Coeffs;
-        /// <summary>
-        /// The origin of each parameter.  Used to shift feature vectors prior to polynomial expansion.
-        /// </summary>
-        public float[] Origin;
+		/// <summary>
+		/// This is used to condition the data prior to a polynomial expansion.
+		/// </summary>
+		public SpatialConditioner Conditioner;
 		/// <summary>
 		/// The model parameters.  Each row specifies coefficients for a polynomial, so this array has <see cref="Npoly"/>
 		/// rows and <see cref="Coeffs"/>.Ncoeff columns (See <see cref="Poly.Ncoeff"/>).

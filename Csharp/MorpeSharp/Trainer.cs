@@ -52,16 +52,16 @@ namespace Morpe
 		/// </summary>
 		public bool IsTraining { get { return this.trainerIsRunning; } }
 		private bool trainerIsRunning = false;
-        /// <summary>
-        /// A container for the output of analyses performed prior to optimization.
-        /// </summary>
-        public PreOptimizationAnalysis Analysis;
+		/// <summary>
+		/// A container for the output of analyses performed prior to optimization.
+		/// </summary>
+		public PreOptimizationAnalysis Analysis;
 		/// <summary>
 		/// Trains the classifier by optimizing parameters based on the training data using specified solver options.
 		/// This can only be called once.
 		/// </summary>
 		/// <param name="data">The training data.
-        /// WARNING:  In order to save memory, this data is altered in palce (instead of copying a new object).</param>
+		/// WARNING:  In order to save memory, this data is altered in palce (instead of copying a new object).</param>
 		/// <param name="ops">Sets the member variable <see cref="Classifier.Options"/>.  If a value is not provided, default options are used.</param>
 		public async Task<Trainer> Train(CategorizedData data, SolverOptions ops)
 		{
@@ -110,30 +110,30 @@ namespace Morpe
 				else
 					throw new ApplicationException("Unhandled weighting rule.");
 
-                //-----------------------
-                //	Prepare category labels for each datum.
-                //-----------------------
-                byte[] catVec = new byte[data.Ntotal];
-                int iDatum = 0;
-                for (int iCat = 0; iCat < data.Ncats; iCat++)
-                {
-                    int nRows = data.X[iCat].Length;
-                    for (int iRow = 0; iRow < nRows; iRow++)
-                        catVec[iDatum++] = (byte)iCat;
-                }
+				//-----------------------
+				//	Prepare category labels for each datum.
+				//-----------------------
+				byte[] catVec = new byte[data.Ntotal];
+				int iDatum = 0;
+				for (int iCat = 0; iCat < data.Ncats; iCat++)
+				{
+					int nRows = data.X[iCat].Length;
+					for (int iRow = 0; iRow < nRows; iRow++)
+						catVec[iDatum++] = (byte)iCat;
+				}
 
 				//-----------------------
 				//	Condition the data and perform a polynomial expansion.
 				//-----------------------
-                this.Analysis = new PreOptimizationAnalysis();
-                this.Analysis.ConditionMeasurer = SpatialConditionMeasurer.Measure(data);
-                this.Analysis.Conditioner = this.Analysis.ConditionMeasurer.Conditioner();
-                this.Analysis.Conditioner.Condition(data);
-                data.Expand(this.Classifier.Instance.Coeffs);
+				this.Analysis = new PreOptimizationAnalysis();
+				this.Analysis.ConditionMeasurer = SpatialConditionMeasurer.Measure(data);
+				this.Analysis.Conditioner = this.Analysis.ConditionMeasurer.Conditioner();
+				this.Analysis.Conditioner.Condition(data);
+				data.Expand(this.Classifier.Instance.Coeffs);
 
 				this.Analysis.ParamScale = new float[this.Classifier.Instance.Coeffs.Ncoeffs];
-                this.Analysis.Xscale = new float[this.Classifier.Instance.Coeffs.Ncoeffs];
-                this.Analysis.ParamInit = Static.NewArrays<float>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
+				this.Analysis.Xscale = new float[this.Classifier.Instance.Coeffs.Ncoeffs];
+				this.Analysis.ParamInit = Static.NewArrays<float>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
 
 				//if (ops.InitializeParams)
 					this.Analysis.Crits = Static.NewArrays<UniCrit>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
@@ -162,8 +162,8 @@ namespace Morpe
 					}
 					Static.QuickSortIndex(idxVec, xVec, 0, xVec.Length - 1);
 					scale = xVec[idxVec[i975]] - xVec[idxVec[i025]];
-                    this.Analysis.Xscale[iCoeff] = scale;
-                    this.Analysis.ParamScale[iCoeff] = (float)(1.0 / scale);
+					this.Analysis.Xscale[iCoeff] = scale;
+					this.Analysis.ParamScale[iCoeff] = (float)(1.0 / scale);
 
 					//if (ops.InitializeParams)
 					//{
@@ -198,32 +198,32 @@ namespace Morpe
 							(
 								Math.Max(0.0, this.Analysis.Crits[0][iCoeff].Accuracy - accMin[0])
 								+
-                                Math.Max(0.0, this.Analysis.Crits[1][iCoeff].Accuracy - accMin[1])
+								Math.Max(0.0, this.Analysis.Crits[1][iCoeff].Accuracy - accMin[1])
 							);
 						tAcc /= (1.0 - 0.5 * (accMin[0] + accMin[1]) + invNtotal);
-                        if (this.Analysis.Crits[0][iCoeff].TargetUpper)
+						if (this.Analysis.Crits[0][iCoeff].TargetUpper)
 							this.Analysis.ParamInit[0][iCoeff] = (float)tAcc * this.Analysis.ParamScale[iCoeff];
 						else
-                            this.Analysis.ParamInit[0][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
+							this.Analysis.ParamInit[0][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
 
 					}
 					else
 					{
 						for (int iPoly = 0; iPoly < this.Classifier.Instance.Npoly; iPoly++)
 						{
-                            double tAcc = Math.Max(0.0, this.Analysis.Crits[iPoly][iCoeff].Accuracy - accMin[iPoly]);
+							double tAcc = Math.Max(0.0, this.Analysis.Crits[iPoly][iCoeff].Accuracy - accMin[iPoly]);
 							tAcc /= (1.0 - accMin[iPoly] + invNtotal);
-                            if (this.Analysis.Crits[iPoly][iCoeff].TargetUpper)
-                                this.Analysis.ParamInit[iPoly][iCoeff] = (float)tAcc * this.Analysis.ParamScale[iCoeff];
+							if (this.Analysis.Crits[iPoly][iCoeff].TargetUpper)
+								this.Analysis.ParamInit[iPoly][iCoeff] = (float)tAcc * this.Analysis.ParamScale[iCoeff];
 							else
-                                this.Analysis.ParamInit[iPoly][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
+								this.Analysis.ParamInit[iPoly][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
 						}
 					}
 				}
 
-                if (ops.InitializeParams)
-                {
-                    Static.Copy<float>(this.Analysis.ParamInit, this.Classifier.Instance.Params);
+				if (ops.InitializeParams)
+				{
+					Static.Copy<float>(this.Analysis.ParamInit, this.Classifier.Instance.Params);
 				}
 				else
 				{
