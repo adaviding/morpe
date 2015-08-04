@@ -30,7 +30,8 @@ function out = Mcl_Trfm_Ctor(Name, Vals)
 if	~isequal(Name, 'None') &&...
 	~isequal(Name, 'FisherZ') &&...
 	~isequal(Name, 'LogAbs') &&...
-	~isequal(Name, 'SgnPow')
+	~isequal(Name, 'SgnPow') &&...
+    ~isequal(Name, 'Affine')
 	error('Unrecognized transform Name.');
 end
 
@@ -44,6 +45,8 @@ if exist('Vals', 'var')
 		out.Vals = [out.Vals, 1];
 	elseif numel(out.Vals)==1	&& isequal(Name, 'LogAbs')
 		out.Vals = [out.Vals, 0];
+    elseif numel(out.Vals)==1	&& isequal(Name, 'Affine')
+		out.Vals = [out.Vals, 1];
 	end
 else
 	if	isequal(Name, 'None')
@@ -56,6 +59,9 @@ else
 	elseif isequal(Name, 'LogAbs')
 		% Bounds transform domain to > -4.6
 		out.Vals = [0.00000001, 0]; %0.00000001;
+    elseif isequal(Name, 'Affine')
+		% Default subtract 0 divide by 1
+		out.Vals = [0 1];
 	else
 		error('Unrecognized transform Name.');
 	end

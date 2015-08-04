@@ -32,7 +32,15 @@ end
 if isequal(o.Class, 'Mcl_Axis')
 	x = Mcl_Trfm_Vec(o.Transform,goForward,x);
 elseif isequal(o.Class, 'Mcl_Trfm')
-	if isequal(o.Name, 'FisherZ')
+    if isequal(o.Name, 'Affine')
+		if goForward
+			%	Subtract a value, then divide a value.
+            x = (x - o.Vals(1)) / o.Vals(2);
+		else
+			%	Multiply a value, then add a value.
+			x = x * o.Vals(2) + o.Vals(1);
+		end
+    elseif isequal(o.Name, 'FisherZ')
 		if goForward
 			%	Go from [-1, 1] to Z
 			x = min(1,max(-1,x/o.Vals(2)));
