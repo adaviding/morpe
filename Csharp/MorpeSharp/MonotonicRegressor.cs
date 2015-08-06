@@ -5,10 +5,13 @@ using System.Text;
 
 namespace Morpe
 {
+	/// <summary>
+	/// An object that performs monotonic regression.
+	/// </summary>
 	public class MonotonicRegressor
 	{
 		/// <summary>
-		/// The type of monotonic regression performed.  Suggest MonotonicRegressionType.Blended.
+		/// The type of monotonic regression to be performed.  Suggest MonotonicRegressionType.Blended.
 		/// </summary>
 		public MonotonicRegressionType Type = MonotonicRegressionType.Blended;
 		/// <summary>
@@ -18,8 +21,8 @@ namespace Morpe
 		/// <param name="output">The monotonic function.  This should be supplied as vector of length identical to input.
 		/// When the function has finished executing, the following are guaranteed to be true:
 		///		mean(output) == mean(input)
-		///		min(output) >= min(input)
-		///		max(output) <= max(input)
+		///		min(output) &gt;= min(input)
+		///		max(output) &lt;= max(input)
 		/// </param>
 		/// <param name="input">The tabulated function.</param>
 		/// <returns>The number of repetitions through a loop.</returns>
@@ -143,7 +146,7 @@ namespace Morpe
 					}
 				}
 				//---------------------------
-				//	The prior operation  will have (1) expanded the range of our function and (2) increased the mean of the function.
+				//	The prior operation will have (1) expanded the range of our function and (2) increased the mean of the function.
 				//---------------------------
 				rngY = output[nm1]-output[0];
 				aCarry = (rngY-aCarry)/rngY;  // To counter range expansion
@@ -159,7 +162,7 @@ namespace Morpe
 				//---------------------------
 		
 				//---------------------------
-				//	Counter the increase to the function's mean.
+				//	Counter change of mean.
 				//---------------------------
 				if (sBig!=sSmall) // Signals the mean is off-center
 				{
@@ -273,7 +276,7 @@ namespace Morpe
 			}
 			//----------------------------------------------------------------------------------
 
-			//	If the blending method is selected, store the output in the static variable Ynd
+			//	If the blending method is selected, store the intermediate result in the variable "ynd"
 			int maxLen = 0;
 			int len = 0;
 			double blendFactor=1.0;
@@ -296,7 +299,6 @@ namespace Morpe
 			//	Change a non-decreasing function into a monotonic function.
 			if (this.Type == MonotonicRegressionType.Increasing || this.Type == MonotonicRegressionType.Blended)
 			{
-				//	The function is now guaranteed flat and must be converted to a monotonic function.
 				//	Compute min, max, and recompute derivative.
 				dyMin=output[1]-output[0];
 				for(i=1; i<n; i++)
@@ -307,11 +309,12 @@ namespace Morpe
 						dyMin = dyThis;
 				}
 				sSmall=(output[nm1]-output[0])*0.00001/(double)n;
-				//	Only continue if the derivative is zero and if the function is not totally flat.
+				
+				//	Only continue if the minimum derivative is zero (or tiny) and if the function is not totally flat.
 				if (output[nm1]>output[0] && dyMin<=sSmall)
 				{
 					//----------------------------------------------------------------------------------
-					//	Alter the derivative to be positive everywhere, then rebuild the function from this altered derivative.
+					//	Alter the derivative to be positive everywhere, then integrate the altered derivative.
 					//----------------------------------------------------------------------------------
 
 					//---------------------------
@@ -441,7 +444,13 @@ namespace Morpe
 			}
 			return nTrips;
 		}
+		/// <summary>
+		/// Intermediate storage for the derivative and altered derivative.
+		/// </summary>
 		protected double[] dy;
+		/// <summary>
+		/// Intermediate storage for an intermediate result (the non-decreasing function).
+		/// </summary>
 		protected double[] ynd;
 	}
 }

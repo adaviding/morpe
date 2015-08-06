@@ -88,6 +88,7 @@ namespace Morpe
 			}
 			for (int iCol = 0; iCol < data.Ndims; iCol++)
 			{
+				output.Spread[iCol] = 0.0f;
 				output.AvgMedian[iCol] /= (float)data.Ncats;
 				for(int iCat = 0; iCat < data.Ncats; iCat++)
 				{
@@ -117,6 +118,19 @@ namespace Morpe
 			SpatialConditioner output = new SpatialConditioner(this.Ndims);
 			Array.Copy(this.AvgMedian, output.Origin, this.Ndims);
 			Array.Copy(this.Spread, output.Spread, this.Ndims);
+			return output;
+		}
+		/// <summary>
+		/// Deep copy.
+		/// </summary>
+		/// <returns>A deep copy.</returns>
+		public SpatialConditionMeasurer Copy()
+		{
+			SpatialConditionMeasurer output = new SpatialConditionMeasurer(this.Ncats, this.Ndims);
+			Array.Copy(this.AvgMedian, output.AvgMedian, this.Ndims);
+			Array.Copy(this.Spread, output.Spread, this.Ndims);
+			Static.Copy<float>(this.Medians, output.Medians);
+			Static.Copy<float>(this.Spreads, output.Spreads);
 			return output;
 		}
 	}

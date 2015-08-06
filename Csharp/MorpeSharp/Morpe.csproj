@@ -37,6 +37,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CategorizedDataStats.cs" />
+    <Compile Include="ClassifierOptions.cs" />
     <Compile Include="Draw\Color.cs" />
     <Compile Include="Draw\Contour.cs" />
     <Compile Include="Draw\ContourSegment.cs" />
@@ -46,11 +47,12 @@
     <Compile Include="Draw\Point.cs" />
     <Compile Include="F.cs" />
     <Compile Include="Fitted.cs" />
-    <Compile Include="Gaussian.cs" />
+    <Compile Include="Distributions\D1\Gaussian.cs" />
     <Compile Include="Draw\IsoContours.cs" />
     <Compile Include="MonotonicRegressor.cs" />
     <Compile Include="MonotonicRegressionType.cs" />
     <Compile Include="OptimizationMeasurement.cs" />
+    <Compile Include="OptimizationMode.cs" />
     <Compile Include="SpatialConditioner.cs" />
     <Compile Include="SpatialConditionMeasurer.cs" />
     <Compile Include="PreOptimizationAnalysis.cs" />

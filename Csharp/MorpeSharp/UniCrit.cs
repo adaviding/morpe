@@ -261,5 +261,14 @@ namespace Morpe
 				}
 			}
 		}
+		public UniCrit Copy()
+		{
+			UniCrit output = new UniCrit();
+			output.Accuracy = this.Accuracy;
+			output.CritIndex = this.CritIndex;
+			output.CritValue = this.CritValue;
+			output.TargetUpper = this.TargetUpper;
+			return output;
+		}
 	}
 }

@@ -291,7 +291,8 @@ namespace Morpe
 				QuickSortIndex(idx, x, iCol, i, right);
 		}
 		/// <summary>
-		/// Returns the entry (a,b) of the Pascal matrix (which is symmetric).  (a+b)! / a / b
+		/// Returns the entry (a,b) of the Pascal matrix.  The parameters are interchangeable because the matrix is symmetric.
+		/// The value returned is equal to:  (a+b)! / a! / b!
 		/// </summary>
 		/// <param name="a">The row of the Pascal matrix.</param>
 		/// <param name="b">The column of the Pascal matrix.</param>
@@ -308,7 +309,32 @@ namespace Morpe
 				output /= i;
 			return output;
 		}
+		/// <summary>
+		/// A random number generator.
+		/// </summary>
 		public static readonly Random Rand = new Random();
+		/// <summary>
+		/// Generates a random ordering of elements.  Useful for shuffling.
+		/// </summary>
+		/// <param name="n">The length of the random ordering.</param>
+		/// <returns>An array of length n containing a random ordering of the set of integers {0, ..., n-1}.</returns>
+		public static int[] RandomOrder(int n)
+		{
+			int temp;
+			int[] output = new int[n];
+			FillSeries(output);
+			for (int i = 0; i < n; i++)
+			{
+				int j = Rand.Next(n);
+				if (j != i)
+				{
+					temp = output[i];
+					output[i] = output[j];
+					output[j] = temp;
+				}
+			}
+			return output;
+		}
 		/// <summary>
 		/// Generates a random n * n rotation matrix.  This is useful for generating a random orthonormal basis.
 		/// </summary>
@@ -358,6 +384,44 @@ namespace Morpe
 				}
 			}
 			return output;
+		}
+		/// <summary>
+		/// Sets all elements of "output" equal to a value.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="output">The array whose elements are set.</param>
+		/// <param name="value">The value.</param>
+		public void SetValues<T>(T[][] output, T value)
+		{
+			if (output == null)
+				return;
+			foreach(T[] row in output)
+			{
+				if(row!=null)
+				{
+					for (int i = 0; i < output.Length; i++)
+						row[i] = value;
+				}
+			}
+		}
+		/// <summary>
+		/// Shuffles the pages in a random order.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="x">Pages of sheets.</param>
+		public void Shuffle<T>(T[][][] x)
+		{
+			T[][] sheet;
+			for(int i=0; i<x.Length; i++)
+			{
+				int j = Rand.Next(x.Length);
+				if(j!=i)
+				{
+					sheet = x[i];
+					x[i] = x[j];
+					x[j] = sheet;
+				}
+			}
 		}
 		/// <summary>
 		/// Calculates the sum of a vector of integers.

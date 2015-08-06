@@ -14,17 +14,22 @@ namespace Morpe
 	public class Trainer
 	{
 		/// <summary>
-		/// Used to perform monotonic regression of a tabulated function.
-		/// </summary>
-		public static readonly ThreadLocal<MonotonicRegressor> Regressor = new ThreadLocal<MonotonicRegressor>(() => new MonotonicRegressor());
-		/// <summary>
-		/// The classifier that is trained.
-		/// </summary>
-		public readonly Fitted<Classifier> Classifier;
-		/// <summary>
 		/// The relative importance of each category on the solution.  This is important when calculating accuracy and entropy.
 		/// </summary>
-		public readonly double[] CatWeights;
+		public double[] CatWeights;
+		/// <summary>
+		/// The trained classifier.
+		/// </summary>
+		public Fitted<Classifier> Classifier;
+		/// <summary>
+		/// Returns true if the trainer is currently training a classifier.
+		/// </summary>
+		public bool IsTraining { get { return this.trainerIsRunning; } }
+		private bool trainerIsRunning = false;
+		/// <summary>
+		/// The number of quantiles used.
+		/// </summary>
+		public int Nquantiles = 15;
 		/// <summary>
 		/// Solver options used during training.  Prior to training, this member contains the default options.
 		/// </summary>
@@ -44,15 +49,6 @@ namespace Morpe
 		/// </summary>
 		protected double totalWeight;
 		/// <summary>
-		/// The number of quantiles used.
-		/// </summary>
-		public int Nquantiles = 15;
-		/// <summary>
-		/// Returns true if the trainer is currently training a classifier.
-		/// </summary>
-		public bool IsTraining { get { return this.trainerIsRunning; } }
-		private bool trainerIsRunning = false;
-		/// <summary>
 		/// A container for the output of analyses performed prior to optimization.
 		/// </summary>
 		public PreOptimizationAnalysis Analysis;
@@ -63,7 +59,8 @@ namespace Morpe
 		/// <param name="data">The training data.
 		/// WARNING:  In order to save memory, this data is altered in palce (instead of copying a new object).</param>
 		/// <param name="ops">Sets the member variable <see cref="Classifier.Options"/>.  If a value is not provided, default options are used.</param>
-		public async Task<Trainer> Train(CategorizedData data, SolverOptions ops)
+		/// <param name="ops">The pre-optimization analysis <see cref="Classifier.Analysis"/>.  If a value is not provided, default options are used.</param>
+		public async Task<Trainer> Train(CategorizedData data, SolverOptions ops=null, PreOptimizationAnalysis analysis=null)
 		{
 			lock (this)
 			{
@@ -110,10 +107,16 @@ namespace Morpe
 				else
 					throw new ApplicationException("Unhandled weighting rule.");
 
+				//	[iDatum] Used for identifying the category label for each datum.
+				byte[] catVec = new byte[data.Ntotal];
+				//	[iDatum] Used for storing the polynomial calculation for each datum.
+				float[][] yVec = Static.NewArrays<float>(this.Classifier.Instance.Npoly, data.Ntotal);
+				//	[iPoly][iDatum]  Used for sorting data rows.  Sort order is preserved for each polynomial.
+				int[][] idxVec = Static.NewArrays<int>(this.Classifier.Instance.Npoly,data.Ntotal);
+
 				//-----------------------
 				//	Prepare category labels for each datum.
 				//-----------------------
-				byte[] catVec = new byte[data.Ntotal];
 				int iDatum = 0;
 				for (int iCat = 0; iCat < data.Ncats; iCat++)
 				{
@@ -122,105 +125,105 @@ namespace Morpe
 						catVec[iDatum++] = (byte)iCat;
 				}
 
-				//-----------------------
-				//	Condition the data and perform a polynomial expansion.
-				//-----------------------
-				this.Analysis = new PreOptimizationAnalysis();
-				this.Analysis.ConditionMeasurer = SpatialConditionMeasurer.Measure(data);
-				this.Analysis.Conditioner = this.Analysis.ConditionMeasurer.Conditioner();
-				this.Analysis.Conditioner.Condition(data);
-				data.Expand(this.Classifier.Instance.Coeffs);
-
-				this.Analysis.ParamScale = new float[this.Classifier.Instance.Coeffs.Ncoeffs];
-				this.Analysis.Xscale = new float[this.Classifier.Instance.Coeffs.Ncoeffs];
-				this.Analysis.ParamInit = Static.NewArrays<float>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
-
-				//if (ops.InitializeParams)
-					this.Analysis.Crits = Static.NewArrays<UniCrit>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
-
-				//-----------------------
-				//	Get the parameter scale.
-				//-----------------------
-				float scale;
-				float[] xVec = new float[data.Ntotal];
-				int[] idxVec = new int[data.Ntotal];
-				int i025 = (int)(0.5 + 0.025 * (double)(data.Ntotal - 1));
-				int i500 = (int)(0.5 + 0.500 * (double)(data.Ntotal - 1));
-				int i975 = (int)(0.5 + 0.975 * (double)(data.Ntotal - 1));
-				for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.Ncoeffs; iCoeff++)
+				if (analysis != null)
+					this.Analysis = analysis;
+				else
 				{
-					//	Quantiles determine the parameter scale.
-					Static.FillSeries(idxVec);
-					iDatum = 0;
-					for (int iCat = 0; iCat < data.Ncats; iCat++)
-					{
-						int nSamp = data.Neach[iCat];
-						for (int iSamp = 0; iSamp < nSamp; iSamp++)
-						{
-							xVec[iDatum++] = data.X[iCat][iSamp][iCoeff];
-						}
-					}
-					Static.QuickSortIndex(idxVec, xVec, 0, xVec.Length - 1);
-					scale = xVec[idxVec[i975]] - xVec[idxVec[i025]];
-					this.Analysis.Xscale[iCoeff] = scale;
-					this.Analysis.ParamScale[iCoeff] = (float)(1.0 / scale);
+					//-----------------------
+					//	Condition the data and perform a polynomial expansion.
+					//-----------------------
+					this.Analysis = new PreOptimizationAnalysis();
+					this.Analysis.ConditionMeasurer = SpatialConditionMeasurer.Measure(data);
+					this.Analysis.Conditioner = this.Analysis.ConditionMeasurer.Conditioner();
+					this.Analysis.Conditioner.Condition(data);
+					data.Expand(this.Classifier.Instance.Coeffs);
+
+					this.Analysis.ParamScale = new float[this.Classifier.Instance.Coeffs.Ncoeffs];
+					this.Analysis.ParamInit = Static.NewArrays<float>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
 
 					//if (ops.InitializeParams)
-					//{
+					this.Analysis.Crits = Static.NewArrays<UniCrit>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
+
+					//-----------------------
+					//	Get the parameter scale.
+					//-----------------------
+					float scale;
+					int i15 = (int)(0.5 + 0.15 * (double)(data.Ntotal - 1));
+					int i50 = (int)(0.5 + 0.50 * (double)(data.Ntotal - 1));
+					int i85 = (int)(0.5 + 0.85 * (double)(data.Ntotal - 1));
+					float[] xVec = yVec[0];
+					for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.Ncoeffs; iCoeff++)
+					{
+						//	Quantiles determine the parameter scale.
+						Static.FillSeries(idxVec[0]);
+						iDatum = 0;
+						for (int iCat = 0; iCat < data.Ncats; iCat++)
+						{
+							int nSamp = data.Neach[iCat];
+							for (int iSamp = 0; iSamp < nSamp; iSamp++)
+								xVec[iDatum++] = data.X[iCat][iSamp][iCoeff];
+						}
+						Static.QuickSortIndex(idxVec[0], xVec, 0, xVec.Length - 1);
+						scale = xVec[idxVec[0][i85]] - xVec[idxVec[0][i15]];
+						this.Analysis.ParamScale[iCoeff] = (float)(1.0 / scale);
+
+						//if (ops.InitializeParams)
+						//{
 						//	Get univariate classification criteria to get a first-order clue about the saliency of each feature.
 						for (int iCat = 0; iCat < data.Ncats; iCat++)
-							this.Analysis.Crits[iCat][iCoeff] = UniCrit.MaximumAccuracy(iCat, catVec, xVec, idxVec, this.CatWeights);
-					//}
-				}
-				xVec = null;
-
-
-				//-----------------------
-				//	Compute initial params.
-				//-----------------------
-				
-				//	Compute the expected minimum value for the univariate 2-category classification accuracy.
-				double[] accMin = new double[data.Ncats];
-				for (int iCat = 0; iCat < data.Ncats; iCat++)
-				{
-					accMin[iCat] = (this.totalWeight - this.CatWeights[iCat] * (double)data.Neach[iCat]) / this.totalWeight;
-					if (accMin[iCat] < 0.5)
-						accMin[iCat] = 1.0 - accMin[iCat];
-				}
-
-				//	The magnitude of each parameter is a function of univariate classification accuracy for the corresponding spatial dimension.
-				double invNtotal = 1.0 / data.Ntotal;
-				for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.Ncoeffs; iCoeff++)
-				{
-					if (this.Classifier.Instance.Npoly == 1)
-					{
-						double tAcc = 0.5 *
-							(
-								Math.Max(0.0, this.Analysis.Crits[0][iCoeff].Accuracy - accMin[0])
-								+
-								Math.Max(0.0, this.Analysis.Crits[1][iCoeff].Accuracy - accMin[1])
-							);
-						tAcc /= (1.0 - 0.5 * (accMin[0] + accMin[1]) + invNtotal);
-						if (this.Analysis.Crits[0][iCoeff].TargetUpper)
-							this.Analysis.ParamInit[0][iCoeff] = (float)tAcc * this.Analysis.ParamScale[iCoeff];
-						else
-							this.Analysis.ParamInit[0][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
-
+							this.Analysis.Crits[iCat][iCoeff] = UniCrit.MaximumAccuracy(iCat, catVec, xVec, idxVec[0], this.CatWeights);
+						//}
 					}
-					else
+
+					//-----------------------
+					//	Compute initial params.
+					//-----------------------
+					//	Compute the expected minimum value for the univariate 2-category classification accuracy.
+					double[] accMin = new double[data.Ncats];
+					for (int iCat = 0; iCat < data.Ncats; iCat++)
 					{
-						for (int iPoly = 0; iPoly < this.Classifier.Instance.Npoly; iPoly++)
+						accMin[iCat] = (this.totalWeight - this.CatWeights[iCat] * (double)data.Neach[iCat]) / this.totalWeight;
+						if (accMin[iCat] < 0.5)
+							accMin[iCat] = 1.0 - accMin[iCat];
+					}
+
+					//	The magnitude of each parameter is a function of univariate classification accuracy for the corresponding spatial dimension.
+					double invNtotal = 1.0 / data.Ntotal;
+					for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.Ncoeffs; iCoeff++)
+					{
+						if (this.Classifier.Instance.Npoly == 1)
 						{
-							double tAcc = Math.Max(0.0, this.Analysis.Crits[iPoly][iCoeff].Accuracy - accMin[iPoly]);
-							tAcc /= (1.0 - accMin[iPoly] + invNtotal);
-							if (this.Analysis.Crits[iPoly][iCoeff].TargetUpper)
-								this.Analysis.ParamInit[iPoly][iCoeff] = (float)tAcc * this.Analysis.ParamScale[iCoeff];
+							double tAcc = 0.5 *
+								(
+									Math.Max(0.0, this.Analysis.Crits[0][iCoeff].Accuracy - accMin[0])
+									+
+									Math.Max(0.0, this.Analysis.Crits[1][iCoeff].Accuracy - accMin[1])
+								);
+							tAcc /= (1.0 - 0.5 * (accMin[0] + accMin[1]) + invNtotal);
+							if (this.Analysis.Crits[0][iCoeff].TargetUpper)
+								this.Analysis.ParamInit[0][iCoeff] = (float)tAcc * this.Analysis.ParamScale[iCoeff];
 							else
-								this.Analysis.ParamInit[iPoly][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
+								this.Analysis.ParamInit[0][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
+
+						}
+						else
+						{
+							for (int iPoly = 0; iPoly < this.Classifier.Instance.Npoly; iPoly++)
+							{
+								double tAcc = Math.Max(0.0, this.Analysis.Crits[iPoly][iCoeff].Accuracy - accMin[iPoly]);
+								tAcc /= (1.0 - accMin[iPoly] + invNtotal);
+								if (this.Analysis.Crits[iPoly][iCoeff].TargetUpper)
+									this.Analysis.ParamInit[iPoly][iCoeff] = (float)tAcc * this.Analysis.ParamScale[iCoeff];
+								else
+									this.Analysis.ParamInit[iPoly][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
+							}
 						}
 					}
 				}
 
+				//-----------------------
+				//	Set classifier parameters.
+				//-----------------------
 				if (ops.InitializeParams)
 				{
 					Static.Copy<float>(this.Analysis.ParamInit, this.Classifier.Instance.Params);
@@ -237,7 +240,6 @@ namespace Morpe
 				if (this.Classifier.Instance.Npoly > 2 && this.options.InitializeParams)
 				{
 					SolverOptions dualOps = this.options.Copy();
-					dualOps.InitializeParams = false;
 					dualOps.WeightingRule = WeightingRule.EqualPriors;
 					Task<Trainer>[] dualTasks = new Task<Trainer>[this.Classifier.Instance.Npoly];
 					for(int iPoly=0; iPoly<this.Classifier.Instance.Npoly; iPoly++)
@@ -254,29 +256,103 @@ namespace Morpe
 				}
 
 				//-----------------------
-				//	Construct the classifiers based on parameters already specified.
+				//	Finish constructing the classifier for the first time.
 				//-----------------------
-				Static.FillSeries(idxVec);
-				throw new ApplicationException("TO DO");
+				MonotonicRegressor regressor = new MonotonicRegressor();
+				for (int iPoly = 0; iPoly < this.Classifier.Instance.Npoly; iPoly++)
+					Static.FillSeries(idxVec[iPoly]);
 
-				//-----------------------
-				//	Measure the classifier's fit.
-				//-----------------------
-				throw new ApplicationException("TO DO");
+				for (int iPoly = 0; iPoly < this.Classifier.Instance.Npoly; iPoly++)
+				{
+					//	Set the quantized probability limits.
+					double nPerQuantile = (double)Math.Min(data.Neach[iPoly], data.Ntotal - data.Neach[iPoly]) / (double)this.Classifier.Instance.Quant[iPoly].Nquantiles;
+					this.Classifier.Instance.Quant[iPoly].Pmin = 1.0 / nPerQuantile;
+					this.Classifier.Instance.Quant[iPoly].Pmax = 1.0-this.Classifier.Instance.Quant[iPoly].Pmin;
 
+					//	Evaluate the polynomial expression for each datum.
+					iDatum = 0;
+					for (int iCat = 0; iCat < data.Ncats; iCat++)
+					{
+						int nSamp = data.Neach[iCat];
+						for (int iSamp = 0; iSamp < nSamp; iSamp++)
+						{
+							//	Evaluate the polynomial expression.
+							yVec[iPoly][iDatum++] = (float)this.Classifier.Instance.EvalPolyFromExpanded(iPoly, data.X[iCat][iSamp]);
+						}
+					}
+
+					//	Sort the output.  Indexes are preserved to speed up subsequent sorts.
+					Static.QuickSortIndex(idxVec[iPoly], yVec[iPoly], 0, data.Ntotal-1);
+
+					//	Quantize the output.
+					this.Classifier.Instance.Quant[iPoly].Measure(idxVec[iPoly], yVec[iPoly], catVec, (byte)iPoly, this.CatWeights, totalWeight, regressor);
+				}
+								
+				//-----------------------
+				//	Measure the conditional entropy.
+				//-----------------------
+				float[] y = new float[this.Classifier.Instance.Npoly];
+				double[] p;
+				double fit = 0.0;
+				byte c;
+				for(iDatum=0; iDatum < data.Ntotal; iDatum++)
+				{
+					for (int iPoly = 0; iPoly < this.Classifier.Instance.Npoly; iPoly++)
+						y[iPoly] = yVec[iPoly][iDatum];
+					p = this.Classifier.Instance.ClassifyPolynomialOutputs(y);
+					c = catVec[iDatum];
+					fit += Math.Log(p[c]) * this.CatWeights[c];
+				}
+				//	Change logarithm base and normalize by total weight.
+				this.Classifier.Fit = -fit / totalWeight / Math.Log((double)data.Ncats);	//	<-- The conditional entropy... we want to minimize it.
+				
 				//-----------------------
 				//	Prepare optimization memory.
 				//-----------------------
-				int iBasis = 0;
-				float[][][] basis = null;
+				
+				//	Initialize an orthonormal if the parameter space is small enough.
+				float[][][] ortho = null;
 				int nParams = this.Classifier.Instance.Npoly * this.Classifier.Instance.Coeffs.Ncoeffs;
 				if (nParams <= 100)
-					basis = this.randomDeviates();
+					ortho = this.randomDeviates();
+				int iOrtho = 0;
+				int ctOrtho = 0;
+				int ctSteps = 0;
+				
+				//	Every `modOrtho` steps through the orthonormal basis, we try a gradient search.
+				int modOrtho = Math.Min(10, nParams);
+
+				//	For a trip through `modOrtho` bases, changes in entropy are partialled across the parameter space.
+				float[][] dhOrtho = Static.NewArrays<float>(this.Classifier.Instance.Npoly, this.Classifier.Instance.Coeffs.Ncoeffs);
 
 				//-----------------------
 				//	Optimize.
 				//-----------------------
-				throw new ApplicationException("TO DO");
+				//	The attempted classifier.
+				Classifier cTry = this.Classifier.Instance.Copy();
+				//	The initial step size.
+				float stepSize = this.Options.ParamDiffMax;
+				//	The optimization mode.  We start by iterating through the orthogonal bases.
+				OptimizationMode mode = OptimizationMode.Ortho;
+
+				throw new NotImplementedException("TO DO");
+				
+				bool keepOptimizing = true;
+				while (keepOptimizing)
+				{
+					if(mode==OptimizationMode.Ortho)
+					{
+						if(iOrtho >= modOrtho)
+						{
+							iOrtho = 0;
+						}
+					}
+					else if(mode==OptimizationMode.Gradient)
+					{
+					}
+					else
+						throw new ApplicationException("Unhandled optimization mode.");
+				}
 			}
 			finally
 			{

@@ -55,5 +55,12 @@ namespace Morpe
 				}
 			}
 		}
+		public SpatialConditioner Copy()
+		{
+			SpatialConditioner output = new SpatialConditioner(this.Ndims);
+			Array.Copy(this.Origin, output.Origin, this.Ndims);
+			Array.Copy(this.Spread, output.Spread, this.Ndims);
+			return output;
+		}
 	}
 }

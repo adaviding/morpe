@@ -13,15 +13,16 @@ namespace Morpe
 	public class PreOptimizationAnalysis
 	{
 		/// <summary>
-		/// The space conditioner.
+		/// The spatial conditioner.
 		/// </summary>
 		public SpatialConditioner Conditioner;
 		/// <summary>
-		/// Measures the spatial condition.  Contains extra information.
+		/// Measures the spatial conditioner based on training data.  Contains statistical information.
 		/// </summary>
 		public SpatialConditionMeasurer ConditionMeasurer;
 		/// <summary>
-		/// Unidimensional accuracy-maximizing criteria.
+		/// Unidimensional accuracy-maximizing criteria for each conditioned-expanded dimension.
+		/// Indexed as [iCat][iCoeff]
 		/// </summary>
 		public UniCrit[][] Crits;
 		/// <summary>
@@ -29,12 +30,78 @@ namespace Morpe
 		/// </summary>
 		public float[][] ParamInit;
 		/// <summary>
-		/// The scale of each polynomial coefficient.  The scales are the same across all polynomials.
+		/// The scale of data for each conditioned-expanded dimension.  These scales are the same
+		/// across all polynomials.
 		/// </summary>
 		public float[] ParamScale;
 		/// <summary>
-		/// The scale of the training data (for each column of data).
+		/// Deep copy.
 		/// </summary>
-		public float[] Xscale;
+		/// <returns>A deep copy.</returns>
+		public PreOptimizationAnalysis Copy()
+		{
+			PreOptimizationAnalysis output = new PreOptimizationAnalysis();
+			
+			if(this.Conditioner!=null)
+				output.Conditioner = this.Conditioner.Copy();
+
+			if(this.ConditionMeasurer!=null)
+				output.ConditionMeasurer = this.ConditionMeasurer.Copy();
+			
+			if(this.Crits!=null)
+			{
+				output.Crits = Static.Copy<UniCrit>(this.Crits);
+				for(int iCat=0; iCat<output.Crits.Length; iCat++)
+				{
+					UniCrit[] crits = output.Crits[iCat];
+					for(int iCoeff=0; iCoeff<crits.Length; iCoeff++)
+						crits[iCoeff] = crits[iCoeff].Copy();
+				}
+			}
+			
+			if(this.ParamInit!=null)
+				output.ParamInit = Static.Copy<float>(this.ParamInit);
+			
+			if(this.ParamScale!=null)
+				output.ParamScale = (float[])this.ParamScale.Clone();
+			
+			return output;
+		}
+		/// <summary>
+		/// Creates a deep copy of this instance which is cast for a 2 category sub-problem where the target category
+		/// is cast as category 0 and the remaining samples are cast as category 1.
+		/// </summary>
+		/// <param name="iCat">The target category.</param>
+		/// <returns>A copy of the instance, cast for the dual problem.</returns>
+		public PreOptimizationAnalysis CopyAsDual(int iCat)
+		{
+			if(iCat<0)
+				return null;
+
+			PreOptimizationAnalysis output = new PreOptimizationAnalysis();
+			
+			if (this.Conditioner != null)
+				output.Conditioner = this.Conditioner.Copy();
+
+			if (this.Crits != null && this.Crits.Length > iCat)
+			{
+				output.Crits = new UniCrit[1][];
+				UniCrit[] crits = output.Crits[iCat];
+				for (int iCoeff = 0; iCoeff < crits.Length; iCoeff++)
+					crits[iCoeff] = crits[iCoeff].Copy();
+				output.Crits[0] = crits;
+			}
+			
+			if (this.ParamInit != null && this.ParamInit.Length > iCat)
+			{
+				output.ParamInit = new float[1][];
+				output.ParamInit[0] = (float[])this.ParamInit[iCat].Clone();
+			}
+			
+			if (this.ParamScale != null)
+				output.ParamScale = (float[])this.ParamScale.Clone();
+			
+			return output;
+		}
 	}
 }

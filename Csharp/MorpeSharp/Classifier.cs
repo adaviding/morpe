@@ -174,6 +174,47 @@ namespace Morpe
 			}
 		}
 		/// <summary>
+		/// Classifies the polynomial outputs.
+		/// </summary>
+		/// <param name="y">The output of each polynomial.</param>
+		/// <returns>A vector of length <see cref="Ncats"/> giving the conditional probability of category membership for each category.
+		/// Sums to exactly 1.0 (guaranteed).</returns>
+		public double[] ClassifyPolynomialOutputs(float[] y)
+		{
+			double p = 0.0;
+			if (this.Npoly == 1)
+			{
+				Quantization q = this.Quant[0];
+				if (y[0] < q.Ymid[0])
+					p = q.P[0];
+				else if (y[0] > q.Ymid[q.Nquantiles - 1])
+					p = q.P[q.Nquantiles - 1];
+				else
+					p = Static.Linterp(q.Ymid, q.P, y[0]);
+				return new double[] { p, 1.0 - p };
+			}
+			else
+			{
+				double[] output = new double[this.Ncats];
+				double pSum = 0.0;
+				for (int iCat = 0; iCat < this.Ncats; iCat++)
+				{
+					Quantization q = this.Quant[iCat];
+					if (y[iCat] < q.Ymid[0])
+						p = q.P[0];
+					else if (y[iCat] > q.Ymid[q.Nquantiles - 1])
+						p = q.P[q.Nquantiles - 1];
+					else
+						p = Static.Linterp(q.Ymid, q.P, y[iCat]);
+					output[iCat] = p;
+					pSum += p;
+				}
+				for (int iCat = 0; iCat < this.Ncats; iCat++)
+					output[iCat] /= pSum;
+				return output;
+			}
+		}
+		/// <summary>
 		/// Creates a copy of the classifier which utilizes totally different memory resources.
 		/// </summary>
 		/// <returns>A copy of the classifier, with identical parameter values, but utilizing completely different memory resources.</returns>

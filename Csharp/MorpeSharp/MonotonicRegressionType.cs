@@ -8,7 +8,7 @@ namespace Morpe
 	public enum MonotonicRegressionType
 	{
 		/// <summary>
-		/// A monotonic regression where the output is likely to have "flat spots".  Thus, the output is not truly monotonic.
+		/// A monotonic regression where the output probably has "flat spots".  Thus, the output is not truly monotonic.
 		/// </summary>
 		NonDecreasing,
 		/// <summary>
