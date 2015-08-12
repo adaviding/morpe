@@ -33,7 +33,7 @@ This is the original implementation of MoRPE.  **This code is filthy.**  I inven
 
 In order for the C files to be callable from Matlab, each file needs to be "mexed" from the Matlab command line.  Here I have already mexed the C files for 32-bit and 64-bit Windows, and so the software will work from a 32-bit or 64-bit Windows machine.  If you want this software to work on a different platform, you might need to mex the files from that platform (but it might work as is... I'm not sure).  For more information, see the Matlab documentation for `mex`.
 
-I recently `mex`ed the files using the following Matlab script.
+Matlab Script for mexing files (if you need to):
 
 	setenv('VS120COMNTOOLS','C:\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\Tools\');
 	mex Mcl_Accuracy.cpp;
