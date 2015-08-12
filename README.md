@@ -6,19 +6,21 @@ The classification problem is commonly encountered when a finite sample of data 
 
 Ing, AD (2014) MoRPE:  A Probabilistic Classifier.  *GitHub*.  doi:10.5281/zenodo.13235.  Retrieved from https://github.com/adaviding/Morpe/releases/tag/0.1.
 
-#Project Status
-The Matlab codebase is functioning, but it is difficult for others to use.  It is very quirky.  (See the Matlab notes below.)
+As an algorithm, MoRPE is one of the best classifiers available in the public domain (perhaps *the* best).  Unfortunately, I have not had time to create a stable release for others to use.
 
-I am slowly getting together a C# code base (in my spare time).  This is a much more efficient algorithm, with a nicer coding style, and the optimization routine is much more efficient.  (See the C# notes below.)
+#Project Status
+The Matlab codebase is functioning, but it is quirky and difficult for others to use.  (See the Matlab notes below.)  The optimization routine has a known error for cases where the input data is not centered around the origin.  To fix this error, compute the median of each category, and center your data around the average median.
+
+I am slowly getting together a C# code base (in my spare time).  The optimization routine is more efficient and the code is easier to work with.  (See the C# notes below.)
 
 #Recommended Usage
-As an algorithm, MoRPE is one of the best classifiers available in the public domain (perhaps *the* best).  However, this does not mean that it can be applied blindly to any data set.  Before MoRPE is applied, the analyst must design a feature space that minimizes category fragmentation (as discussed in the paper).  This means that the analyst must spend time visualizing the data in many possible feature spaces, and carefully select the set of features that appears to minimize fragmentation.  The analyst doesn't need to be perfect, but they should make a decent effort and then MoRPE will handle the rest (as it is designed to do).
+Like all other classifiers, the MoRPE classifier should not be applied blindly to a given data set.  Before MoRPE is applied, the analyst must design a feature space that minimizes category fragmentation (as discussed in the paper).  This means that the analyst must spend time visualizing the data in many possible feature spaces, and carefully select the set of features that appears to minimize fragmentation.  The analyst doesn't need to be perfect, but they should make a decent effort and then MoRPE will handle the rest (as it is designed to do).
 
 MoRPE is intended for scenarios where you have at least a few hundred samples per category, and where the number of categories is relatively small (between 2 and 10).  MoRPE works best for 2-category problems (where it has the fewest free parameters for a constant polynomial rank).  If MoRPE has H parameters for the 2-category problem, it has M*H parameters for the M-category problem where M > 2 (for a constant polynomial rank).
 
 MoRPE approximates the optimal classifier when category fragmentation is low, and when irrelevant dimensions are removed from the feature space (as discussed in the paper).
 
-#Upcoming Software Releases
+#Software Releases
 I am planning to provide this software in C# so others can use it.  Keep in mind... I can only work on this project in my spare time.
 
 ##C# 
@@ -30,6 +32,21 @@ Once ready, the optimization algorithm will feature major design improvements ov
 This is the original implementation of MoRPE.  **This code is filthy.**  I invented MoRPE almost by accident because nothing else seemed to fit the data I collected for my dissertation.  I tried many different things before MoRPE emerged from the chaos, and so this code is very chaotic.  There is plenty of dead code here, and the C code is almost impossible to understand (this was my first time writing anything in C or C++).
 
 In order for the C files to be callable from Matlab, each file needs to be "mexed" from the Matlab command line.  Here I have already mexed the C files for 32-bit and 64-bit Windows, and so the software will work from a 32-bit or 64-bit Windows machine.  If you want this software to work on a different platform, you might need to mex the files from that platform (but it might work as is... I'm not sure).  For more information, see the Matlab documentation for `mex`.
+
+I recently `mex`ed the files using the following Matlab script.
+
+	setenv('VS120COMNTOOLS','C:\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\Tools\');
+	mex Mcl_Accuracy.cpp;
+	mex Mcl_ConditionalEntropy.cpp;
+	mex Mcl_ForceMonotonic.cpp;
+	mex Mcl_MapDv.cpp;
+	mex Mcl_Poly_CalcDv.cpp;
+	mex Mcl_Poly_Coeff.cpp;
+	mex Mcl_Poly_Init.cpp;
+	mex Mcl_QuantizeDv.cpp;
+	mex Mcl_QuickSort.cpp;
+	mex Mcl_RandRotate.cpp;
+	mex Mcl_RangeLimit.cpp;
 
 In this folder, you will find:
 * A number of cpp-files.
