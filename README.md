@@ -9,9 +9,11 @@ Ing, AD (2014) MoRPE:  A Probabilistic Classifier.  *GitHub*.  doi:10.5281/zenod
 As an algorithm, MoRPE is one of the best classifiers available in the public domain (perhaps *the* best).  Unfortunately, I have not had time to create a stable release for others to use.
 
 #Project Status
+Work on the open source version is currently halted.
+
 The Matlab codebase is functioning, but it is quirky and difficult for others to use.  (See the Matlab notes below.)  The optimization routine has a known error for cases where the input data is not centered around the origin.  To fix this error, compute the median of each category, and center your data around the average median.
 
-I am slowly getting together a C# code base (in my spare time).  The optimization routine is more efficient and the code is easier to work with.  (See the C# notes below.)
+The C# codebase is halfway complete.  I have stopped working on this version because of a conflict with my employment contract.  (See the C# notes below.)
 
 #Recommended Usage
 Like all other classifiers, the MoRPE classifier should not be applied blindly to a given data set.  Before MoRPE is applied, the analyst must design a feature space that minimizes category fragmentation (as discussed in the paper).  This means that the analyst must spend time visualizing the data in many possible feature spaces, and carefully select the set of features that appears to minimize fragmentation.  The analyst doesn't need to be perfect, but they should make a decent effort and then MoRPE will handle the rest (as it is designed to do).
@@ -24,9 +26,12 @@ MoRPE approximates the optimal classifier when category fragmentation is low, an
 I am planning to provide this software in C# so others can use it.  Keep in mind... I can only work on this project in my spare time.
 
 ##C# 
-Not ready.  Expected to be ready on September 1, 2015.
+This version is halfway complete.  It basically lacks an optimization routine, but is otherwise complete.
 
-Once ready, the optimization algorithm will feature major design improvements over its Matlab counterpart.
+I started a C# codebase many years after finishing the Matlab codebase.  I was halfway finished before I got hired to complete the work privately for my employer.  My employment contract prevents me from publishing that work in the public domain.  So for now, the C# version is halfway complete (without an optimization routine).  In the future, I may rewrite the optimization routine in my spare time, and post a complete version.
+
+##Java
+I am currently working on a private Java version for my  employer.  This version works on a GPU-enabled cluster.  I cannot release that code in the public domain.  Contact me if you want to get your hands on that version.  (It would need to go through my employer, and I don't know what kind of terms they would negotiate.)
 
 ##Matlab
 This is the original implementation of MoRPE.  **This code is filthy.**  I invented MoRPE almost by accident because nothing else seemed to fit the data I collected for my dissertation.  I tried many different things before MoRPE emerged from the chaos, and so this code is very chaotic.  There is plenty of dead code here, and the C code is almost impossible to understand (this was my first time writing anything in C or C++).
