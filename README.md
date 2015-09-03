@@ -9,7 +9,7 @@ Ing, AD (2014) MoRPE:  A Probabilistic Classifier.  *GitHub*.  doi:10.5281/zenod
 As an algorithm, MoRPE is one of the best classifiers available in the public domain (perhaps *the* best).  Unfortunately, I have not had time to create a stable release for others to use.
 
 #Project Status
-Work on the open source version is currently halted.
+Work on the open source version is currently halted because I am currently developing MoRPE for a private entity.
 
 The Matlab codebase is functioning, but it is quirky and difficult for others to use.  (See the Matlab notes below.)  The optimization routine has a known error for cases where the input data is not centered around the origin.  To fix this error, compute the median of each category, and center your data around the average median.
 
