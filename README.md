@@ -16,6 +16,8 @@ The Matlab codebase is functioning, but it is quirky and difficult for others to
 The C# codebase is halfway complete.  I have stopped working on this version because of a conflict with my employment contract.  (See the C# notes below.)
 
 #Recommended Usage
+MoRPE should be used in scenarios when the categories are partially overlapping (such that perfect classification performance is impossible).  If the categories are fully separated (such that perfect classification performance is possible), then you should use a different classifier such as a Support Vector Machine (hard margin) or a Decision Tree.
+
 Like all other classifiers, the MoRPE classifier should not be applied blindly to a given data set.  Before MoRPE is applied, the analyst must design a feature space that minimizes category fragmentation (as discussed in the paper).  This means that the analyst must spend time visualizing the data in many possible feature spaces, and carefully select the set of features that appears to minimize fragmentation.  The analyst doesn't need to be perfect, but they should make a decent effort and then MoRPE will handle the rest (as it is designed to do).
 
 MoRPE is intended for scenarios where you have at least a few hundred samples per category, and where the number of categories is relatively small (between 2 and 10).  MoRPE works best for 2-category problems (where it has the fewest free parameters for a constant polynomial rank).  If MoRPE has H parameters for the 2-category problem, it has M*H parameters for the M-category problem where M > 2 (for a constant polynomial rank).
