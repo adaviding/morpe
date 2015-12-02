@@ -1,12 +1,12 @@
 #MoRPE:  A Probabilistic Classifier
 The classification problem is commonly encountered when a finite sample of data is leveraged to determine the probabilistic relationship between a category label  *c*  and a multivariate coordinate  **x**   for an entire population.  Solving this problem requires approximating the optimal classifier, a function of  **x**   that evaluates the conditional probability  *p*(*c*¦**x**)  in an optimal way.  The paper *Ing_Morpe.docx* introduces MoRPE, a method for approximating optimal classifiers.  MoRPE is a machine learning method for probabilistic classification based on **Mo**notonic **R**egression of a **P**olynomial **E**xpansion.  It is conceptually related to Fisher’s Quadratic Discriminant (Fisher 1936) and Kernel Machines.  MoRPE has the ability to approximate an optimal classifier with remarkable precision in common scenarios.
 
+As an algorithm, MoRPE is one of the best classifiers available in the public domain (perhaps *the* best).  Unfortunately, I have not had time to create a stable release for others to use.  The versions posted here are incomplete, difficult to use, and/or buggy.
+
 #Academic Citation
 ### [Release 0.1](https://github.com/adaviding/Morpe/releases/tag/0.1) [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.13235.svg)](http://dx.doi.org/10.5281/zenodo.13235)
 
 Ing, AD (2014) MoRPE:  A Probabilistic Classifier.  *GitHub*.  doi:10.5281/zenodo.13235.  Retrieved from https://github.com/adaviding/Morpe/releases/tag/0.1.
-
-As an algorithm, MoRPE is one of the best classifiers available in the public domain (perhaps *the* best).  Unfortunately, I have not had time to create a stable release for others to use.
 
 #Project Status
 Work on the open source version is currently halted because I am currently developing MoRPE for a private entity.
