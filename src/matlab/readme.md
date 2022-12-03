@@ -2,10 +2,16 @@
 **This code is filthy.**  You probably don't want to use it.
 
 ## status
-This code probably still works, but I have not tested it in a VERY long time, and I have no plans to maintain this moving forward.
+This code worked in the years 2008-2010, and I have no idea if it works with modern Matlab version.  I have not used or tested this version since 2010.  I do not intend to work on this version in the future.
 
 ## summary
 This is the original implementation of MoRPE.  I invented MoRPE almost by accident because nothing else seemed to fit the data I collected for my dissertation.  I tried many different things before MoRPE emerged from the chaos, and so this code is very chaotic.  There is plenty of dead code here, and the C code is almost impossible to understand (this was my first time writing anything in C or C++).
+
+## known issues
+* Not actively maintained or tested.
+* API is quirky, poorly documented, and difficult to use.
+* The optimization routine has a known error for cases where the input data is not centered around the origin.
+  * To fix this error, compute the median of each category, and center your data around the average median. 
 
 ## build and usage
 In order for the C files to be callable from Matlab, each file needs to be "mexed" from the Matlab command line.  Here I have already mexed the C files for 32-bit and 64-bit Windows, and so the software will work from a 32-bit or 64-bit Windows machine.  If you want this software to work on a different platform, you might need to mex the files from that platform (but it might work as is... I'm not sure).  For more information, see the Matlab documentation for `mex`.
