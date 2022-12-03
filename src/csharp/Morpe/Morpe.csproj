@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <AssemblyName>Morpe</AssemblyName>
+        <RootNamespace>Morpe</RootNamespace>
+        <PackageId>Morpe</PackageId>
+        <Title>MoRPE:  Monotonic Regression of a Polynomial Expansion</Title>
+        <Authors>Almon David Ing</Authors>
+        <Description>MoRPE is a probabilistic classifier.  It is a machine learning method that can be trained by existing data with known category labels. </Description>
+        <PackageProjectUrl>https://github.com/adaviding/Morpe</PackageProjectUrl>
+        <PackageLicenseUrl>https://github.com/adaviding/Morpe/license.md</PackageLicenseUrl>
+        <RepositoryUrl>https://github.com/adaviding/Morpe</RepositoryUrl>
+        <Company>Almon David Ing</Company>
+        <Product>MoRPE</Product>
+    </PropertyGroup>
+
+</Project>
