@@ -4,7 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 
-using Morpe.Distributions.D1;
+using D  = Morpe.Numerics.D;
+using D1 = Morpe.Numerics.D1;
+using F1 = Morpe.Numerics.F1;
+using I1 = Morpe.Numerics.I1;
 
 namespace Morpe
 {
@@ -110,9 +113,9 @@ namespace Morpe
 				//	[iDatum] Used for identifying the category label for each datum.
 				byte[] catVec = new byte[data.Ntotal];
 				//	[iDatum] Used for storing the polynomial calculation for each datum.
-				float[][] yVec = Static.NewArrays<float>(this.Classifier.Instance.Npoly, data.Ntotal);
+				float[][] yVec = Util.NewArrays<float>(this.Classifier.Instance.Npoly, data.Ntotal);
 				//	[iPoly][iDatum]  Used for sorting data rows.  Sort order is preserved for each polynomial.
-				int[][] idxVec = Static.NewArrays<int>(this.Classifier.Instance.Npoly,data.Ntotal);
+				int[][] idxVec = Util.NewArrays<int>(this.Classifier.Instance.Npoly,data.Ntotal);
 
 				//-----------------------
 				//	Prepare category labels for each datum.
@@ -139,10 +142,10 @@ namespace Morpe
 					data.Expand(this.Classifier.Instance.Coeffs);
 
 					this.Analysis.ParamScale = new float[this.Classifier.Instance.Coeffs.Ncoeffs];
-					this.Analysis.ParamInit = Static.NewArrays<float>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
+					this.Analysis.ParamInit = Util.NewArrays<float>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
 
 					//if (ops.InitializeParams)
-					this.Analysis.Crits = Static.NewArrays<UniCrit>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
+					this.Analysis.Crits = Util.NewArrays<UniCrit>(this.Classifier.Instance.Ncats, this.Classifier.Instance.Coeffs.Ncoeffs);
 
 					//-----------------------
 					//	Get the parameter scale.
@@ -155,7 +158,7 @@ namespace Morpe
 					for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.Ncoeffs; iCoeff++)
 					{
 						//	Quantiles determine the parameter scale.
-						Static.FillSeries(idxVec[0]);
+						I1.Util.FillSeries(idxVec[0]);
 						iDatum = 0;
 						for (int iCat = 0; iCat < data.Ncats; iCat++)
 						{
@@ -163,7 +166,7 @@ namespace Morpe
 							for (int iSamp = 0; iSamp < nSamp; iSamp++)
 								xVec[iDatum++] = data.X[iCat][iSamp][iCoeff];
 						}
-						Static.QuickSortIndex(idxVec[0], xVec, 0, xVec.Length - 1);
+						F1.Util.QuickSortIndex(idxVec[0], xVec, 0, xVec.Length - 1);
 						scale = xVec[idxVec[0][i85]] - xVec[idxVec[0][i15]];
 						this.Analysis.ParamScale[iCoeff] = (float)(1.0 / scale);
 
@@ -226,12 +229,12 @@ namespace Morpe
 				//-----------------------
 				if (ops.InitializeParams)
 				{
-					Static.Copy<float>(this.Analysis.ParamInit, this.Classifier.Instance.Params);
+					Util.Copy<float>(this.Analysis.ParamInit, this.Classifier.Instance.Params);
 				}
 				else
 				{
 					//	Inherit parameters passed in by the classifier.  We assume the classifier was already initialized with parameters.
-					Static.Copy<float>(this.Classifier.Instance.Params, this.Analysis.ParamInit);
+					Util.Copy<float>(this.Classifier.Instance.Params, this.Analysis.ParamInit);
 				}
 
 				//-----------------------
@@ -252,15 +255,15 @@ namespace Morpe
 						Trainer t = await dualTasks[iPoly];
 						Array.Copy(t.Classifier.Instance.Params, this.Analysis.ParamInit[iPoly], this.Classifier.Instance.Coeffs.Ncoeffs);
 					}
-					Static.Copy<float>(this.Analysis.ParamInit, this.Classifier.Instance.Params);
+					Util.Copy<float>(this.Analysis.ParamInit, this.Classifier.Instance.Params);
 				}
 
 				//-----------------------
 				//	Finish constructing the classifier for the first time.
 				//-----------------------
-				MonotonicRegressor regressor = new MonotonicRegressor();
+				D1.MonotonicRegressor regressor = new D1.MonotonicRegressor();
 				for (int iPoly = 0; iPoly < this.Classifier.Instance.Npoly; iPoly++)
-					Static.FillSeries(idxVec[iPoly]);
+					I1.Util.FillSeries(idxVec[iPoly]);
 
 				for (int iPoly = 0; iPoly < this.Classifier.Instance.Npoly; iPoly++)
 				{
@@ -282,7 +285,7 @@ namespace Morpe
 					}
 
 					//	Sort the output.  Indexes are preserved to speed up subsequent sorts.
-					Static.QuickSortIndex(idxVec[iPoly], yVec[iPoly], 0, data.Ntotal-1);
+					F1.Util.QuickSortIndex(idxVec[iPoly], yVec[iPoly], 0, data.Ntotal-1);
 
 					//	Quantize the output.
 					this.Classifier.Instance.Quant[iPoly].Measure(idxVec[iPoly], yVec[iPoly], catVec, (byte)iPoly, this.CatWeights, totalWeight, regressor);
@@ -323,7 +326,7 @@ namespace Morpe
 				int modOrtho = Math.Min(10, nParams);
 
 				//	For a trip through `modOrtho` bases, changes in entropy are partialled across the parameter space.
-				float[][] dhOrtho = Static.NewArrays<float>(this.Classifier.Instance.Npoly, this.Classifier.Instance.Coeffs.Ncoeffs);
+				float[][] dhOrtho = Util.NewArrays<float>(this.Classifier.Instance.Npoly, this.Classifier.Instance.Coeffs.Ncoeffs);
 
 				//-----------------------
 				//	Optimize.
@@ -366,7 +369,7 @@ namespace Morpe
 		/// <param name="yVals">The y-value of each datum in the sample.  These values are the output
 		/// of the polynomial function for the target category.</param>
 		/// <param name="yIdx">On output, provides the zero-based index into yVals that rank-orders the yVals.  On output,
-		/// this order is calculated by calling <see cref="Static.QuickSortIndex"/> to sort yVals[yIdx[:]].
+		/// this order is calculated by calling <see cref="Util.QuickSortIndex"/> to sort yVals[yIdx[:]].
 		/// On input, the order from the previous optimization step is passed in.  This means that the list is
 		/// mostly sorted (for small parameter changes), and a mostly sorted list will make the optimization go
 		/// faster than anothr random ordering such as 0...(yVals.Length-1).</param>
@@ -385,7 +388,7 @@ namespace Morpe
 			//	Each time we enter this function, the sort index is preserved from the prior function call.
 			//	This typically leads to faster sort times during optimization because typically the list is sorted
 			//	already (or partially sorted).
-			Static.QuickSortIndex(yIdx, yVals, 0, yVals.Length);
+			F1.Util.QuickSortIndex(yIdx, yVals, 0, yVals.Length);
 
 			int iBin = 0;  // The current bin.
 			double ySum = 0.0; // Weighted sum of y-values for the current bin.
@@ -482,8 +485,8 @@ namespace Morpe
 		protected float[][][] randomDeviates()
 		{
 			int nParams = this.Classifier.Instance.Npoly * this.Classifier.Instance.Coeffs.Ncoeffs;
-			double[,] ortho = Static.RandomRotationMatrix(nParams);
-			float[][][] output = Static.NewArrays<float>(nParams, this.Classifier.Instance.Npoly, this.Classifier.Instance.Coeffs.Ncoeffs);
+			double[,] ortho = D.Util.RandomRotationMatrix(nParams);
+			float[][][] output = Util.NewArrays<float>(nParams, this.Classifier.Instance.Npoly, this.Classifier.Instance.Coeffs.Ncoeffs);
 			for (int iBasis = 0; iBasis < nParams; iBasis++)
 			{
 				for (int iPoly = 0; iPoly < this.Classifier.Instance.Npoly; iPoly++)
@@ -504,14 +507,14 @@ namespace Morpe
 		protected float[][] randomDeviate()
 		{
 			int nParams = this.Classifier.Instance.Npoly * this.Classifier.Instance.Coeffs.Ncoeffs;
-			float[][] output = Static.NewArrays<float>(this.Classifier.Instance.Npoly, this.Classifier.Instance.Coeffs.Ncoeffs);
+			float[][] output = Util.NewArrays<float>(this.Classifier.Instance.Npoly, this.Classifier.Instance.Coeffs.Ncoeffs);
 			double sumsq = 0.0;
 			double r;
 			for (int iPoly = 0; iPoly < this.Classifier.Instance.Npoly; iPoly++)
 			{
 				for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.Ncoeffs; iCoeff++)
 				{
-					r = Gaussian.InvCdf(Static.Rand.NextDouble());
+					r = D1.GaussianDistribution.InvCdf(Util.Rand.NextDouble());
 					sumsq += r * r;
 					output[iPoly][iCoeff] = (float)r;
 				}

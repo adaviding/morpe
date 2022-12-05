@@ -1,4 +1,7 @@
 using System;
+using System.Linq;
+
+using F1 = Morpe.Numerics.F1;
 
 namespace Morpe
 {
@@ -11,22 +14,27 @@ namespace Morpe
 		/// The data, indexed as [c][i][j].  Each page c is a category.  Each row i is a unique data point.  Each column j is a spatial axis.
 		/// </summary>
 		public readonly float[][][] X;
+		
 		/// <summary>
 		/// The total number of data points (across all categories).
 		/// </summary>
 		public readonly int Ntotal;
+		
 		/// <summary>
 		/// The number of data points in each category.  The number of categories is equal to <see cref="Neach.Length"/>;
 		/// </summary>
 		public readonly int[] Neach;
+		
 		/// <summary>
 		/// The spatial dimensionality, and the number of rows of <see cref="X"/>.
 		/// </summary>
 		public readonly int Ndims;
+		
 		/// <summary>
 		/// The number of categories, also equal to <see cref="Neach.Length"/>.
 		/// </summary>
 		public readonly int Ncats;
+		
 		/// <summary>
 		/// Initializes a new instance of the <see cref="CategorizedData"/> class.  Allocates memory for pages, rows, and columns of <see cref="X"/>.
 		/// </summary>
@@ -37,7 +45,7 @@ namespace Morpe
 			this.Neach = Neach;
 			this.Ndims = Ndims;
 			this.Ncats = this.Neach.Length;
-			this.Ntotal = Static.Sum(this.Neach);
+			this.Ntotal = this.Neach.Sum();
 			this.X = new float[this.Ncats][][];
 			for (int iCat=0; iCat<this.Ncats; iCat++)
 			{
@@ -47,12 +55,13 @@ namespace Morpe
 					this.X[iCat][i] = new float[this.Ndims];
 			}
 		}
+		
 		protected CategorizedData(CategorizedData dualViewable, int targetCat)
 		{
 			this.Neach = new int[] { dualViewable.Neach[targetCat], dualViewable.Ntotal - dualViewable.Neach[targetCat] };
 			this.Ndims = dualViewable.Ndims;
 			this.Ncats = this.Neach.Length;
-			this.Ntotal = Static.Sum(this.Neach);
+			this.Ntotal = this.Neach.Sum();
 
 			//	Allocate page holders
 			this.X = new float[this.Ncats][][];
@@ -78,10 +87,10 @@ namespace Morpe
 				}
 			}
 		}
+		
 		/// <summary>
 		/// This reverses the effects of <see cref="Expand"/>.  Expanded terms are removed if they exist.
 		/// </summary>
-		/// <param name="poly">The defiinition of the polynomial expansion.</param>
 		public void Contract()
 		{
 			for (int iCat = 0; iCat < this.Ncats; iCat++)
@@ -91,10 +100,11 @@ namespace Morpe
 				{
 					float[] x = this.X[iCat][iSamp];
 					if (x.Length > this.Ndims)
-						this.X[iCat][iSamp] = Static.GetSubarray(x, 0, this.Ndims - 1);
+						this.X[iCat][iSamp] = F1.Util.GetSubarray(x, 0, this.Ndims - 1);
 				}
 			}
 		}
+		
 		/// <summary>
 		/// Computes the polynomial expansion in place.  You can undo the expansion by calling <see cref="Contract"/>
 		/// </summary>
@@ -108,12 +118,13 @@ namespace Morpe
 				{
 					float[] x = this.X[iCat][iSamp];
 					if (x.Length > this.Ndims)
-						this.X[iCat][iSamp] = poly.Expand(Static.GetSubarray(x, 0, this.Ndims - 1));
+						this.X[iCat][iSamp] = poly.Expand(F1.Util.GetSubarray(x, 0, this.Ndims - 1));
 					else
 						this.X[iCat][iSamp] = poly.Expand(x);
 				}
 			}
 		}
+		
 		/// <summary>
 		/// If the data consists of more than 2 categories, this function returns a "dual" view of the classification data.  This
 		/// views the data as if it consisted only two categories.  In the dual view, the targetCat is represented as category 0 while

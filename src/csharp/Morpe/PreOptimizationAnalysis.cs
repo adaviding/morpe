@@ -50,7 +50,7 @@ namespace Morpe
 			
 			if(this.Crits!=null)
 			{
-				output.Crits = Static.Copy<UniCrit>(this.Crits);
+				output.Crits = Util.Copy<UniCrit>(this.Crits);
 				for(int iCat=0; iCat<output.Crits.Length; iCat++)
 				{
 					UniCrit[] crits = output.Crits[iCat];
@@ -60,7 +60,7 @@ namespace Morpe
 			}
 			
 			if(this.ParamInit!=null)
-				output.ParamInit = Static.Copy<float>(this.ParamInit);
+				output.ParamInit = Util.Copy<float>(this.ParamInit);
 			
 			if(this.ParamScale!=null)
 				output.ParamScale = (float[])this.ParamScale.Clone();

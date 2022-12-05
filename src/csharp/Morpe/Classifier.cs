@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 
+using D1 = Morpe.Numerics.D1;
+
 namespace Morpe
 {
 	/// <summary>
@@ -53,7 +55,7 @@ namespace Morpe
 			this.Npoly = 1;
 			if (this.Ncats > 2)
 				this.Npoly = this.Ncats;
-			this.Params = Static.NewArrays<float>(this.Npoly, this.Coeffs.Ncoeffs);
+			this.Params = Util.NewArrays<float>(this.Npoly, this.Coeffs.Ncoeffs);
 			this.Quant = new Quantization[this.Npoly];
 		}
 		protected Classifier(Classifier toCopy)
@@ -64,7 +66,7 @@ namespace Morpe
 			this.Npoly = 1;
 			if (this.Ncats > 2)
 				this.Npoly = this.Ncats;
-			this.Params = Static.Copy<float>(toCopy.Params);
+			this.Params = Util.Copy<float>(toCopy.Params);
 
 			this.Quant = new Quantization[this.Npoly];
 			Quantization q;
@@ -87,7 +89,7 @@ namespace Morpe
 			this.Coeffs = new Poly(this.Ndims, toCopy.Coeffs.Rank);
 			this.Npoly = 1;
 
-			this.Params = Static.NewArrays<float>(this.Npoly, this.Coeffs.Ncoeffs);
+			this.Params = Util.NewArrays<float>(this.Npoly, this.Coeffs.Ncoeffs);
 			Array.Copy(toCopy.Params[targetPoly], this.Params[0], this.Coeffs.Ncoeffs);
 
 			this.Quant = new Quantization[this.Npoly];
@@ -110,7 +112,7 @@ namespace Morpe
 			if(toMimic.Coeffs.Rank != this.Coeffs.Rank)
 				throw new ArgumentException("Cannot mimic another classifier having a different polynomial rank.");
 
-			Static.Copy<float>(toMimic.Params, this.Params);
+			Util.Copy<float>(toMimic.Params, this.Params);
 
 			Quantization q;
 			for (int i = 0; i < this.Npoly; i++)
@@ -148,7 +150,7 @@ namespace Morpe
 				else if (y > q.Ymid[q.Nquantiles - 1])
 					p = q.P[q.Nquantiles - 1];
 				else
-					p = Static.Linterp(q.Ymid, q.P, y);
+					p = D1.Util.Linterp(q.Ymid, q.P, y);
 				return new double[] { p, 1.0 - p };
 			}
 			else
@@ -164,7 +166,7 @@ namespace Morpe
 					else if (y > q.Ymid[q.Nquantiles - 1])
 						p = q.P[q.Nquantiles - 1];
 					else
-						p = Static.Linterp(q.Ymid, q.P, y);
+						p = D1.Util.Linterp(q.Ymid, q.P, y);
 					output[iCat] = p;
 					pSum += p;
 				}
@@ -190,7 +192,7 @@ namespace Morpe
 				else if (y[0] > q.Ymid[q.Nquantiles - 1])
 					p = q.P[q.Nquantiles - 1];
 				else
-					p = Static.Linterp(q.Ymid, q.P, y[0]);
+					p = D1.Util.Linterp(q.Ymid, q.P, y[0]);
 				return new double[] { p, 1.0 - p };
 			}
 			else
@@ -205,7 +207,7 @@ namespace Morpe
 					else if (y[iCat] > q.Ymid[q.Nquantiles - 1])
 						p = q.P[q.Nquantiles - 1];
 					else
-						p = Static.Linterp(q.Ymid, q.P, y[iCat]);
+						p = D1.Util.Linterp(q.Ymid, q.P, y[iCat]);
 					output[iCat] = p;
 					pSum += p;
 				}

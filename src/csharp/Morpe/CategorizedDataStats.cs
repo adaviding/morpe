@@ -34,8 +34,8 @@ namespace Morpe
 
 			this.Mean = new double[nCoeffs];
 			this.Var = new double[nCoeffs];
-			this.Means = Static.NewArrays<double>(data.Ncats, nCoeffs);
-			this.Vars = Static.NewArrays<double>(data.Ncats, nCoeffs);
+			this.Means = Util.NewArrays<double>(data.Ncats, nCoeffs);
+			this.Vars = Util.NewArrays<double>(data.Ncats, nCoeffs);
 
 			//-----------------------
 			//	Compute CatWeights.

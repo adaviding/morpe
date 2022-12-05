@@ -4,6 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using D = Morpe.Numerics.D;
+using F2 = Morpe.Numerics.F2;
+
 namespace Morpe.Draw
 {
     public class IsoContours : IComparable<IsoContours>
@@ -31,7 +34,7 @@ namespace Morpe.Draw
         /// <summary>
         /// The rectangle that delimits the extent of the histogram mesh.
         /// </summary>
-        public Rect MeshRect;
+        public F2.Rect MeshRect;
         /// <summary>
         /// Constructs the iso-value contours for the function tabulated in Z.
         /// </summary>
@@ -43,7 +46,7 @@ namespace Morpe.Draw
             this.IsoZ = IsoZ;
             int iLen = Z.GetLength(0);
             int jLen = Z.GetLength(1);
-            this.MeshRect = new Rect(0.0f, 0.0f, Z.GetLength(1) - 1, Z.GetLength(0) - 1);
+            this.MeshRect = new F2.Rect(0.0f, 0.0f, Z.GetLength(1) - 1, Z.GetLength(0) - 1);
             ContourVertex[,] zCrossings = new ContourVertex[iLen, jLen];
             double u0, v0, u1, v1, z00, z01, z10, z11, dz0, dz1;
             bool[] crosses = new bool[4];
@@ -103,9 +106,9 @@ namespace Morpe.Draw
                             cv.y = (double)i + 0.5 * (u0 + u1);
                             //	Angle
                             if (dz0 > 0.0)
-                                cv.GradientRadians = Math.Atan2(u1 - u0, 1.0) + D.Pi_1_2;
+                                cv.GradientRadians = Math.Atan2(u1 - u0, 1.0) + D.Util.Pi_1_2;
                             else
-                                cv.GradientRadians = Math.Atan2(u1 - u0, 1.0) - D.Pi_1_2;
+                                cv.GradientRadians = Math.Atan2(u1 - u0, 1.0) - D.Util.Pi_1_2;
                             //	Gradient
                             cv.dZ_dy = 0.5 * (dz0 + dz1);
                             cv.dZ_dGradient = cv.dZ_dy / Math.Sin(cv.GradientRadians);
@@ -164,9 +167,9 @@ namespace Morpe.Draw
                                     cv.y = (double)ii - 0.5 * u1;  // distance from top
                                     //	Angle
                                     if (dz1 > 0.0)
-                                        cv.GradientRadians = Math.Atan2(u1, u0) + D.Pi_1_2;
+                                        cv.GradientRadians = Math.Atan2(u1, u0) + D.Util.Pi_1_2;
                                     else
-                                        cv.GradientRadians = Math.Atan2(u1, u0) - D.Pi_1_2;
+                                        cv.GradientRadians = Math.Atan2(u1, u0) - D.Util.Pi_1_2;
                                     //	Gradient
                                     cv.dZ_dx = dz0;
                                     cv.dZ_dy = dz1;
@@ -196,9 +199,9 @@ namespace Morpe.Draw
                                     cv.y = (double)i + 0.5 * u1; // distance from bottom
                                     //	Angle
                                     if (dz1 > 0.0)
-                                        cv.GradientRadians = D.Pi_1_2 - Math.Atan2(u1, u0); //Math.PI-Math.Atan2(u1,u0)-RADIANS_1_4;
+                                        cv.GradientRadians = D.Util.Pi_1_2 - Math.Atan2(u1, u0); //Math.PI-Math.Atan2(u1,u0)-RADIANS_1_4;
                                     else
-                                        cv.GradientRadians = D.Pi_3_2 - Math.Atan2(u1, u0); //Math.PI-Math.Atan2(u1,u0)+RADIANS_1_4;
+                                        cv.GradientRadians = D.Util.Pi_3_2 - Math.Atan2(u1, u0); //Math.PI-Math.Atan2(u1,u0)+RADIANS_1_4;
                                     //	Gradient
                                     cv.dZ_dx = dz0;
                                     cv.dZ_dy = dz1;
@@ -231,9 +234,9 @@ namespace Morpe.Draw
                                     cv.y = (double)ii - 0.5 * u1; // distance from top
                                     //	Angle
                                     if (dz1 > 0.0)
-                                        cv.GradientRadians = D.Pi_3_2 - Math.Atan2(u1, u0); //Math.PI-Math.Atan2(u1,u0)-RADIANS_1_4;
+                                        cv.GradientRadians = D.Util.Pi_3_2 - Math.Atan2(u1, u0); //Math.PI-Math.Atan2(u1,u0)-RADIANS_1_4;
                                     else
-                                        cv.GradientRadians = D.Pi_3_2 - Math.Atan2(u1, u0); //Math.PI-Math.Atan2(u1,u0)+RADIANS_1_4;
+                                        cv.GradientRadians = D.Util.Pi_3_2 - Math.Atan2(u1, u0); //Math.PI-Math.Atan2(u1,u0)+RADIANS_1_4;
                                     //	Gradient
                                     cv.dZ_dx = dz0;
                                     cv.dZ_dy = dz1;
@@ -263,9 +266,9 @@ namespace Morpe.Draw
                                     cv.y = (double)i + 0.5 * u1;  // distance from bottom
                                     //	Angle
                                     if (dz1 > 0.0)
-                                        cv.GradientRadians = Math.Atan2(u1, u0) + D.Pi_1_2;
+                                        cv.GradientRadians = Math.Atan2(u1, u0) + D.Util.Pi_1_2;
                                     else
-                                        cv.GradientRadians = Math.Atan2(u1, u0) - D.Pi_1_2;
+                                        cv.GradientRadians = Math.Atan2(u1, u0) - D.Util.Pi_1_2;
                                     //	Gradient
                                     cv.dZ_dx = dz0;
                                     cv.dZ_dy = dz1;

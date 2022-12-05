@@ -1,5 +1,8 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+
+using D1 = Morpe.Numerics.D1;
 
 namespace Morpe
 {
@@ -74,8 +77,14 @@ namespace Morpe
 		/// <param name="targetCat">[iDatum] The target category of each datum.</param>
 		/// <param name="catWeight">The weight assigned to each category label.</param>
 		/// <param name="totalWeight">The total weight for the entire sample.</param>
-		public void Measure(int[] yIdx, float[] yValues, byte[] cat, byte targetCat, double[] catWeight, double totalWeight,
-			MonotonicRegressor regressor)
+		public void Measure(
+			[NotNull] int[] yIdx,
+			[NotNull] float[] yValues,
+			[NotNull] byte[] cat,
+			byte targetCat,
+			[NotNull] double[] catWeight,
+			double totalWeight,
+			D1.MonotonicRegressor regressor)
 		{
 			//	Target weight per bin.
 			double wPerBin = totalWeight / (double)(this.Nquantiles + 0.01);

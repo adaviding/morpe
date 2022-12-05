@@ -1,5 +1,7 @@
 using System;
 
+using I = Morpe.Numerics.I;
+
 namespace Morpe
 {
 	/// <summary>
@@ -119,7 +121,7 @@ namespace Morpe
 		/// <param name="rank"><see cref="Poly.Rank"/>.</param>
 		public static int Ncoeff(int nDims, int rank)
 		{
-			return Static.Pascal(nDims,rank);
+			return I.Util.Pascal(nDims,rank);
 
 			//				0	1	2	3	4	5	6	7	8	9
 			//							Rank of Tensor
@@ -137,7 +139,7 @@ namespace Morpe
 		/// <param name="rank"><see cref="Poly.Rank"/>.</param>
 		public static int NcoeffAtRank(int nDims, int rank)
 		{
-			return Static.Pascal(nDims-1, rank);
+			return I.Util.Pascal(nDims-1, rank);
 		}
 	}
 }

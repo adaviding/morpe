@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Morpe.Draw
+namespace Morpe.Numerics.F2
 {
     public struct Point
     {

@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Morpe.Distributions.D1
+namespace Morpe.Numerics.D1
 {
 	/// <summary>
-	/// A class for computing things related to the Gaussian (standard normal) probability function.
+	/// A class for computing things related to the GaussianDistribution (standard normal) probability function.
 	/// </summary>
-	public class Gaussian
+	public class GaussianDistribution
 	{
 		public static readonly double InvPdfScalar;
 		public static readonly double PdfScalar;
@@ -16,7 +16,8 @@ namespace Morpe.Distributions.D1
 		public static readonly double InvRoot2;
 		public static readonly double InvRootPi;
 		public static readonly double MidCut;
-		static Gaussian()
+		
+		static GaussianDistribution()
 		{
 			InvPdfScalar = Math.Sqrt(2.0 * Math.PI);
 			PdfScalar = 1.0 / InvPdfScalar;
@@ -25,7 +26,7 @@ namespace Morpe.Distributions.D1
 			InvRootPi = 1.0 / Math.Sqrt(Math.PI);
 			MidCut = 0.46875 * Root2;
 		}
-		private static double y, x, qq, u, t;
+		
 		#region Normal CDF constants
 		static readonly double[] a = new double[] {
 			1.161110663653770e-002,3.951404679838207e-001,2.846603853776254e+001,
@@ -54,6 +55,7 @@ namespace Morpe.Distributions.D1
 			5.27905102951428412e-1,6.05183413124413191e-2,2.33520497626869185e-3
 		};
 		#endregion
+		
 		#region Inverse CDF constants
 		static readonly double[] ia = new double[] {
 			-3.969683028665376e+01,  2.209460984245205e+02,
@@ -75,6 +77,7 @@ namespace Morpe.Distributions.D1
 			2.445134137142996e+00,  3.754408661907416e+00
 		};
 		#endregion
+		
 		/// <summary>
 		/// The probability density function of z.
 		/// </summary>
@@ -84,6 +87,7 @@ namespace Morpe.Distributions.D1
 		{
 			return Math.Exp(-0.5 * z * z) * PdfScalar;
 		}
+		
 		/// <summary>
 		/// The cumulative probability density function of z.
 		/// </summary>
@@ -91,10 +95,12 @@ namespace Morpe.Distributions.D1
 		/// <returns>The cumulative probability density in the range [0, 1].</returns>
 		public static double Cdf(double z)
 		{
+			double y, x;
+				
 			y = Math.Abs(z);
 			if (y <= MidCut)
 			{
-				/* evaluate erf() for |z| <= sqrt(2)*0.46875 */
+				// evaluate erf() for |z| <= sqrt(2)*0.46875
 				x = y * y;
 				y = z * ((((a[0] * x + a[1]) * x + a[2]) * x + a[3]) * x + a[4]) / ((((b[0] * x + b[1]) * x + b[2]) * x + b[3]) * x + b[4]);
 				return 0.5 + y;
@@ -102,7 +108,7 @@ namespace Morpe.Distributions.D1
 			x = 0.5 * Math.Exp(-0.5 * y * y);
 			if (y <= 4.0)
 			{
-				/* evaluate erfc() for sqrt(2)*0.46875 <= |z| <= sqrt(2)*4.0 */
+				// evaluate erfc() for sqrt(2)*0.46875 <= |z| <= sqrt(2)*4.0
 				y *= InvRoot2;
 				y = ((((((((c[0] * y + c[1]) * y + c[2]) * y + c[3]) * y + c[4]) * y + c[5]) * y + c[6]) * y + c[7]) * y + c[8])
 						/
@@ -111,7 +117,7 @@ namespace Morpe.Distributions.D1
 			}
 			else
 			{
-				/* evaluate erfc() for |z| > sqrt(2)*4.0 */
+				// evaluate erfc() for |z| > sqrt(2)*4.0
 				x *= Root2 / y;
 				y = 2.0 / (y * y);
 				y *= (((((p[0] * y + p[1]) * y + p[2]) * y + p[3]) * y + p[4]) * y + p[5])
@@ -121,6 +127,7 @@ namespace Morpe.Distributions.D1
 			}
 			return (z < 0.0 ? y : 1.0 - y);
 		}
+		
 		/// <summary>
 		/// The inverse cumulative probability density of p.
 		/// </summary>
@@ -128,6 +135,8 @@ namespace Morpe.Distributions.D1
 		/// <returns>A variable in the range [-inf, +inf]</returns>
 		public static double InvCdf(double p)
 		{
+			double qq, u, t;
+				
 			if (p == 0.0)
 				return Double.NegativeInfinity;
 			if (p == 1.0)
@@ -135,7 +144,7 @@ namespace Morpe.Distributions.D1
 			qq = Math.Min(p, 1.0 - p);
 			if (qq > 0.02425)
 			{
-				/* Rational approximation for central region. */
+				// Rational approximation for central region.
 				u = qq - 0.5;
 				t = u * u;
 				u = u * (((((ia[0] * t + ia[1]) * t + ia[2]) * t + ia[3]) * t + ia[4]) * t + ia[5])
@@ -144,18 +153,18 @@ namespace Morpe.Distributions.D1
 			}
 			else
 			{
-				/* Rational approximation for tail region. */
+				// Rational approximation for tail region.
 				t = Math.Sqrt(-2.0 * Math.Log(qq));
 				u = (((((ic[0] * t + ic[1]) * t + ic[2]) * t + ic[3]) * t + ic[4]) * t + ic[5])
 						/
 					((((id[0] * t + id[1]) * t + id[2]) * t + id[3]) * t + 1);
 			}
-			/* The relative error of the approximation has absolute value less
-			than 1.15e-9.  One iteration of Halley's rational method (third
-			order) gives full machine precision... */
-			t = Cdf(u) - qq;    /* error */
-			t = t * InvPdfScalar * Math.Exp(0.5 * u * u);   /* f(u)/df(u) */
-			u = u - t / (1.0 + 0.5 * u * t);     /* Halley's method */
+			
+			// The relative error of the approximation has absolute value less than 1.15e-9.  One iteration of Halley's
+			// rational method (third order) gives full machine precision. 
+			t = Cdf(u) - qq;    // error
+			t = t * InvPdfScalar * Math.Exp(0.5 * u * u);   // f(u)/df(u)
+			u = u - t / (1.0 + 0.5 * u * t);     // Halley's method
 
 			return (p > 0.5 ? -u : u);
 		}

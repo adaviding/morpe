@@ -4,6 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using F1 = Morpe.Numerics.F1;
+using I1 = Morpe.Numerics.I1;
+
 namespace Morpe
 {
 	/// <summary>
@@ -51,8 +54,8 @@ namespace Morpe
 			this.Ndims = nDims;
 			this.AvgMedian = new float[nDims];
 			this.Spread = new float[nDims];
-			this.Medians = Static.NewArrays<float>(nCats, nDims);
-			this.Spreads = Static.NewArrays<float>(nCats, nDims);
+			this.Medians = Util.NewArrays<float>(nCats, nDims);
+			this.Spreads = Util.NewArrays<float>(nCats, nDims);
 		}
 		/// <summary>
 		/// Measures a space conditioner for the training data.
@@ -76,8 +79,8 @@ namespace Morpe
 				int iMed = data.Neach[iCat] / 2;
 				for (int iCol = 0; iCol < data.Ndims; iCol++)
 				{
-					Static.FillSeries(idxVec);
-					Static.QuickSortIndex(idxVec, data.X[iCat], iCol, 0, data.Neach[iCat] - 1);
+					I1.Util.FillSeries(idxVec);
+					F1.Util.QuickSortIndex(idxVec, data.X[iCat], iCol, 0, data.Neach[iCat] - 1);
 
 					if (isOdd)
 						output.Medians[iCat][iCol] = temp = data.X[iCat][iMed][iCol];
@@ -129,8 +132,8 @@ namespace Morpe
 			SpatialConditionMeasurer output = new SpatialConditionMeasurer(this.Ncats, this.Ndims);
 			Array.Copy(this.AvgMedian, output.AvgMedian, this.Ndims);
 			Array.Copy(this.Spread, output.Spread, this.Ndims);
-			Static.Copy<float>(this.Medians, output.Medians);
-			Static.Copy<float>(this.Spreads, output.Spreads);
+			Util.Copy<float>(this.Medians, output.Medians);
+			Util.Copy<float>(this.Spreads, output.Spreads);
 			return output;
 		}
 	}
