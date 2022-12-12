@@ -60,7 +60,7 @@ namespace Morpe
 				{
 					UniCrit[] crits = output.Crits[iCat];
 					for(int iCoeff=0; iCoeff<crits.Length; iCoeff++)
-						crits[iCoeff] = crits[iCoeff].Copy();
+						crits[iCoeff] = crits[iCoeff].Clone();
 				}
 			}
 			
@@ -94,7 +94,7 @@ namespace Morpe
 				output.Crits = new UniCrit[1][];
 				UniCrit[] crits = output.Crits[iCat];
 				for (int iCoeff = 0; iCoeff < crits.Length; iCoeff++)
-					crits[iCoeff] = crits[iCoeff].Copy();
+					crits[iCoeff] = crits[iCoeff].Clone();
 				output.Crits[0] = crits;
 			}
 			

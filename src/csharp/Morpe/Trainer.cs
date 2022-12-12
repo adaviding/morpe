@@ -174,7 +174,7 @@ namespace Morpe
 						//{
 						//	Get univariate classification criteria to get a first-order clue about the saliency of each feature.
 						for (int iCat = 0; iCat < data.NumCats; iCat++)
-							this.Analysis.Crits[iCat][iCoeff] = UniCrit.MaximumAccuracy(iCat, catVec, xVec, idxVec[0], this.CatWeights);
+							this.Analysis.Crits[iCat][iCoeff] = UniCrit.MaximumAccuracy((byte)iCat, catVec, xVec, idxVec[0], this.CatWeights);
 						//}
 					}
 

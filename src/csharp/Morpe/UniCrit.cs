@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 
@@ -19,30 +20,51 @@ namespace Morpe
 		/// <param name="idx">The index into x[.] and cat[.] which rank-orders the sample in terms of increasing x.</param>
 		/// <param name="catWeight">The weight of each category on the accuracy.</param>
 		/// <returns>The unidimensional criterion.</returns>
-		public static UniCrit MaximumAccuracy(int targetCat, byte[] cat, float[] x, int[] idx, double[] catWeight)
+		[return: NotNull]
+		public static UniCrit MaximumAccuracy(
+			byte targetCat,
+			[NotNull] byte[] cat,
+			[NotNull] float[] x,
+			[NotNull] int[] idx,
+			[NotNull] double[] catWeight)
 		{
 			UniCrit output = new UniCrit();
 			output.MaximizeAccuracy(targetCat, cat, x, idx, catWeight);
 			return output;
 		}
+		
 		/// <summary>
 		/// The classification accuracy.
 		/// </summary>
-		public float Accuracy = float.NaN;
+		public double Accuracy = float.NaN;
+		
 		/// <summary>
 		/// The index where the criterion is placed (with respect to a training sample).
 		/// Typically, this index is halfway between two integers.
 		/// </summary>
 		public float CritIndex = float.NaN;
+		
 		/// <summary>
 		/// The value that determines the placement of a univariate criterion.
 		/// </summary>
 		public float CritValue = float.NaN;
+		
 		/// <summary>
 		/// If true, only the values above CritValue are assigned the label of the target category; otherwise, if false,
 		/// only the values below CritValue are assigned the label of the target category.
 		/// </summary>
 		public bool TargetUpper = true;
+		
+		/// <summary>
+		/// Creates a deep copy.
+		/// </summary>
+		/// <returns>A deep copy.</returns>
+		public UniCrit Clone()
+		{
+			UniCrit output = this.MemberwiseClone() as UniCrit;
+			return output;
+		}
+		
 		/// <summary>
 		/// Optimizes this criterion to maximize accuracy for detecting the target category in a sample.
 		/// </summary>
@@ -51,7 +73,12 @@ namespace Morpe
 		/// <param name="x">The univariate value for each datum in the sample.</param>
 		/// <param name="idx">The index into x[.] and cat[.] which rank-orders the sample in terms of increasing x.</param>
 		/// <param name="catWeight">The weight of each category on the accuracy.</param>
-		public void MaximizeAccuracy(int targetCat, byte[] cat, float[] x, int[] idx, double[] catWeight)
+		public void MaximizeAccuracy(
+			byte targetCat,
+			[NotNull] byte[] cat,
+			[NotNull] float[] x,
+			[NotNull] int[] idx,
+			[NotNull] double[] catWeight)
 		{
 			//double cwTotal = Static.Sum(catWeight);
 			int i, idCat;
@@ -204,7 +231,7 @@ namespace Morpe
 			else
 			{
 				this.TargetUpper = false;
-				this.Accuracy = (float)(wNegMax/wt);
+				this.Accuracy = wNegMax/wt;
 				if( wNeg >= wNegMax )
 				{
 					this.CritIndex = (float)nSamp - 0.5f;
@@ -260,15 +287,6 @@ namespace Morpe
 					//------------------------------------------------------------
 				}
 			}
-		}
-		public UniCrit Copy()
-		{
-			UniCrit output = new UniCrit();
-			output.Accuracy = this.Accuracy;
-			output.CritIndex = this.CritIndex;
-			output.CritValue = this.CritValue;
-			output.TargetUpper = this.TargetUpper;
-			return output;
 		}
 	}
 }
