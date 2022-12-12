@@ -1,8 +1,9 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
-namespace Morpe.Numerics.F1
+namespace Morpe.Numerics.F
 {
-	public class F
+	public class Util
 	{
 		/// <summary>
 		/// Adds the elements of "input" to the elements of "output".
@@ -29,6 +30,24 @@ namespace Morpe.Numerics.F1
 						outRow[iCol] += inRow[iCol];
 				}
 			}
+		}
+
+		/// <summary>
+		/// Convert a vector from double to float.
+		/// </summary>
+		/// <param name="input">The input values (double).</param>
+		/// <returns>The output values (float).</returns>
+		[return: NotNull]
+		public static float[] From([NotNull] double[] input)
+		{
+			float[] output = new float[input.Length];
+
+			for (int i = 0; i < output.Length; i++)
+			{
+				output[i] = (float)input[i];
+			}
+
+			return output;
 		}
 
 		/// <summary>

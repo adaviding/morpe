@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,70 +18,29 @@ namespace Morpe
 	public class SpatialConditionMeasurer
 	{
 		/// <summary>
-		/// The average medain of the unconditioned training data.  This variable has this.Ndims columns.  It is the average of this.Medians.
-		/// </summary>
-		public float[] AvgMedian;
-		/// <summary>
-		/// The measured spread of the unconditioned training data.  This variable has this.Ndims columns.  It is the RMS deviation from the AvgMedian
-		/// for all data.  All categories have equal influence over the Spread, regardless of their base rates.
-		/// </summary>
-		public float[] Spread;
-		/// <summary>
-		/// The medians of the data within each category, prior to conditioning.
-		/// This variable has this.Ncats rows and this.Ndims columns.
-		/// </summary>
-		public float[][] Medians;
-		/// <summary>
-		/// The RMS deviation from the median for each category, prior to conditioning.
-		/// This variable has this.Ncats rows and this.Ndims columns.
-		/// </summary>
-		public float[][] Spreads;
-		/// <summary>
-		/// The number of categories.
-		/// </summary>
-		public int Ncats;
-		/// <summary>
-		/// The number of spatial dimensions.
-		/// </summary>
-		public int Ndims;
-		/// <summary>
-		/// Allocates memory for a specified number of categories and dimensions.
-		/// </summary>
-		/// <param name="nCats">The number of categories.</param>
-		/// <param name="nDims">The number of spatial dimensions (unexpanded).</param>
-		public SpatialConditionMeasurer(int nCats, int nDims)
-		{
-			this.Ncats = nCats;
-			this.Ndims = nDims;
-			this.AvgMedian = new float[nDims];
-			this.Spread = new float[nDims];
-			this.Medians = Util.NewArrays<float>(nCats, nDims);
-			this.Spreads = Util.NewArrays<float>(nCats, nDims);
-		}
-		/// <summary>
 		/// Measures a space conditioner for the training data.
 		/// </summary>
 		/// <param name="data">The training data.</param>
 		/// <returns>The space conditioner which has been measured for the training data.</returns>
-		public static SpatialConditionMeasurer Measure(CategorizedData data)
+		[return: NotNull]
+		public static SpatialConditionMeasurer Measure(
+			[NotNull] CategorizedData data)
 		{
-			if (data == null)
-				return null;
-			SpatialConditionMeasurer output = new SpatialConditionMeasurer(data.Ncats, data.Ndims);
+			SpatialConditionMeasurer output = new SpatialConditionMeasurer(data.NumCats, data.NumDims);
 
 			float temp;
 
 			int[] idxVec = null;
-			for (int iCat = 0; iCat < data.Ncats; iCat++)
+			for (int iCat = 0; iCat < data.NumCats; iCat++)
 			{
-				if (idxVec == null || idxVec.Length != data.Neach[iCat])
-					idxVec = new int[data.Neach[iCat]];
-				bool isOdd = data.Neach[iCat] % 2 == 1;
-				int iMed = data.Neach[iCat] / 2;
-				for (int iCol = 0; iCol < data.Ndims; iCol++)
+				if (idxVec == null || idxVec.Length != data.NumEach[iCat])
+					idxVec = new int[data.NumEach[iCat]];
+				bool isOdd = data.NumEach[iCat] % 2 == 1;
+				int iMed = data.NumEach[iCat] / 2;
+				for (int iCol = 0; iCol < data.NumDims; iCol++)
 				{
 					I1.Util.FillSeries(idxVec);
-					F1.Util.QuickSortIndex(idxVec, data.X[iCat], iCol, 0, data.Neach[iCat] - 1);
+					F1.Util.QuickSortIndex(idxVec, data.X[iCat], iCol, 0, data.NumEach[iCat] - 1);
 
 					if (isOdd)
 						output.Medians[iCat][iCol] = temp = data.X[iCat][iMed][iCol];
@@ -89,16 +49,16 @@ namespace Morpe
 					output.AvgMedian[iCol] += temp;
 				}
 			}
-			for (int iCol = 0; iCol < data.Ndims; iCol++)
+			for (int iCol = 0; iCol < data.NumDims; iCol++)
 			{
 				output.Spread[iCol] = 0.0f;
-				output.AvgMedian[iCol] /= (float)data.Ncats;
-				for(int iCat = 0; iCat < data.Ncats; iCat++)
+				output.AvgMedian[iCol] /= (float)data.NumCats;
+				for(int iCat = 0; iCat < data.NumCats; iCat++)
 				{
 					double ssMedian = 0.0f;
 					double ssOrigin = 0.0f;
 					double x, dx;
-					int nRows = data.Neach[iCat];
+					int nRows = data.NumEach[iCat];
 					for(int iRow=0; iRow<nRows; iRow++)
 					{
 						x = data.X[iCat][iRow][iCol];
@@ -111,27 +71,81 @@ namespace Morpe
 					}
 					dx = 1.0/(double)(nRows-1);
 					output.Spreads[iCat][iCol] = (float)Math.Sqrt(dx * ssMedian);
-					output.Spread[iCol] += (float)Math.Sqrt(dx * ssOrigin)/(float)data.Ncats;
+					output.Spread[iCol] += (float)Math.Sqrt(dx * ssOrigin)/(float)data.NumCats;
 				}
 			}
 			return output;
 		}
+		
+		/// <summary>
+		/// The average medain of the unconditioned training data.  This variable has this.Ndims columns.  It is the average of this.Medians.
+		/// </summary>
+		public float[] AvgMedian;
+		
+		/// <summary>
+		/// The medians of the data within each category, prior to conditioning.
+		/// This variable has this.Ncats rows and this.Ndims columns.
+		/// </summary>
+		public float[][] Medians;
+		
+		/// <summary>
+		/// The measured spread of the unconditioned training data.  This variable has this.Ndims columns.  It is the RMS deviation from the AvgMedian
+		/// for all data.  All categories have equal influence over the Spread, regardless of their base rates.
+		/// </summary>
+		public float[] Spread;
+		
+		/// <summary>
+		/// The RMS deviation from the median for each category, prior to conditioning.
+		/// This variable has this.Ncats rows and this.Ndims columns.
+		/// </summary>
+		public float[][] Spreads;
+		
+		/// <summary>
+		/// The number of categories.
+		/// </summary>
+		public int NumCats;
+		
+		/// <summary>
+		/// The number of spatial dimensions.
+		/// </summary>
+		public int NumDims;
+		
+		/// <summary>
+		/// Allocates memory for a specified number of categories and dimensions.
+		/// </summary>
+		/// <param name="numCats">The number of categories.</param>
+		/// <param name="numDims">The number of spatial dimensions (unexpanded).</param>
+		public SpatialConditionMeasurer(int numCats, int numDims)
+		{
+			this.NumCats = numCats;
+			this.NumDims = numDims;
+			this.AvgMedian = new float[numDims];
+			this.Spread = new float[numDims];
+			this.Medians = Util.NewArrays<float>(numCats, numDims);
+			this.Spreads = Util.NewArrays<float>(numCats, numDims);
+		}
+		
+		/// <summary>
+		/// Creates a spatial conditioner based on the measurement.
+		/// </summary>
+		/// <returns>The new spatial conditioner.</returns>
 		public SpatialConditioner Conditioner()
 		{
-			SpatialConditioner output = new SpatialConditioner(this.Ndims);
-			Array.Copy(this.AvgMedian, output.Origin, this.Ndims);
-			Array.Copy(this.Spread, output.Spread, this.Ndims);
+			SpatialConditioner output = new SpatialConditioner(this.NumDims);
+			Array.Copy(this.AvgMedian, output.Origin, this.NumDims);
+			Array.Copy(this.Spread, output.Spread, this.NumDims);
 			return output;
 		}
+		
 		/// <summary>
 		/// Deep copy.
 		/// </summary>
 		/// <returns>A deep copy.</returns>
 		public SpatialConditionMeasurer Copy()
 		{
-			SpatialConditionMeasurer output = new SpatialConditionMeasurer(this.Ncats, this.Ndims);
-			Array.Copy(this.AvgMedian, output.AvgMedian, this.Ndims);
-			Array.Copy(this.Spread, output.Spread, this.Ndims);
+			SpatialConditionMeasurer output = new SpatialConditionMeasurer(this.NumCats, this.NumDims);
+			Array.Copy(this.AvgMedian, output.AvgMedian, this.NumDims);
+			Array.Copy(this.Spread, output.Spread, this.NumDims);
 			Util.Copy<float>(this.Medians, output.Medians);
 			Util.Copy<float>(this.Spreads, output.Spreads);
 			return output;

@@ -77,15 +77,62 @@ namespace Morpe.Numerics.D1
 			2.445134137142996e+00,  3.754408661907416e+00
 		};
 		#endregion
-		
+
 		/// <summary>
-		/// The probability density function of z.
+		/// Calculates a normal random deviate from a distribution having a mean of 0 and standard deviation of 1.
+		/// This uses Box & Mueller's method.
 		/// </summary>
-		/// <param name="z">A variable in the range [-inf, +inf]</param>
-		/// <returns>The probability density.</returns>
-		public static double Pdf(double z)
+		/// <returns>The normal random deviate.</returns>
+		public static double Rand()
 		{
-			return Math.Exp(-0.5 * z * z) * PdfScalar;
+			double output = 0.0;
+			
+			lock (boxMuellerMutex)
+			{
+				if (boxMuellerNextIsReady)
+				{
+					boxMuellerNextIsReady = false;
+					output = boxMuellerNext;
+				}
+				else
+				{
+					double rsq, v1, v2;
+					while (true)
+					{
+						v1 = 2.0 * Morpe.Util.Rand.NextDouble() - 1.0;
+						v2 = 2.0 * Morpe.Util.Rand.NextDouble() - 1.0;
+						rsq = v1*v1 + v2*v2;
+						if (rsq > 0.0 && rsq < 1.0)
+						{
+							break;
+						}
+					}
+					
+					double fac = Math.Sqrt(-2.0*Math.Log(rsq)/rsq);
+					boxMuellerNextIsReady = true;
+					boxMuellerNext = v1 * fac;
+					output = v2 * fac;
+				}
+
+				return output;
+			}
+		}
+
+		/// <summary>
+		/// Returns 'n' normal random deviates from a Gaussian distribution, as per <see cref="Rand"/>.
+		/// </summary>
+		/// <param name="n">The number of random deviates.</param>
+		/// <returns>A vector of 'n' random deviates.</returns>
+		public static double[] Rand(int n)
+		{
+			double[] output = new double[n];
+
+			for (int i = 0; i < output.Length; i++)
+			{
+				output[i] = Rand();
+			}
+
+			return output;
 		}
 		
 		/// <summary>
@@ -168,5 +215,23 @@ namespace Morpe.Numerics.D1
 
 			return (p > 0.5 ? -u : u);
 		}
+		
+		/// <summary>
+		/// The probability density function of z.
+		/// </summary>
+		/// <param name="z">A variable in the range [-inf, +inf]</param>
+		/// <returns>The probability density.</returns>
+		public static double Pdf(double z)
+		{
+			return Math.Exp(-0.5 * z * z) * PdfScalar;
+		}
+
+		#region Box & Mueller's method for generating random deviates.
+		private static object boxMuellerMutex = new object();
+		private static double boxMuellerNext;
+		private static bool boxMuellerNextIsReady = false;
+		#endregion
+		
+		
 	}
 }

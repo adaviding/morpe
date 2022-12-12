@@ -16,56 +16,64 @@ namespace Morpe
 		/// <summary>
 		/// The number of quantiles.
 		/// </summary>
-		public readonly int Nquantiles;
+		public readonly int NumQuantiles;
+		
 		/// <summary>
 		/// The quantized probability.
 		/// </summary>
 		public readonly double[] P;
+		
 		/// <summary>
 		/// The minimum probability limit.  This is computed as a function of the average weight per bin.
 		/// </summary>
 		public double Pmin = 0.0;
+		
 		/// <summary>
 		/// The maximum probability limit.  This is computed as a function of the average weight per bin.
 		/// </summary>
 		public double Pmax = 1.0;
+		
 		/// <summary>
 		/// The averate Y-value for data inside each quantile.
 		/// </summary>
 		public readonly double[] Ymid;
+		
 		/// <summary>
 		/// The boundaries that separate the quantile.  This array has 1 fewer element than <see cref="Ymid"/>.
 		/// </summary>
 		public readonly double[] Ysep;
+		
 		/// <summary>
 		/// Constructs a new container for quantized data.
 		/// </summary>
-		/// <param name="Nquantiles">The number of quantiles.</param>
-		public Quantization(int Nquantiles)
+		/// <param name="numQuantiles"><see cref="NumQuantiles"/></param>
+		public Quantization(int numQuantiles)
 		{
-			this.Nquantiles = Nquantiles;
-			this.Ymid = new double[Nquantiles];
-			this.P = new double[Nquantiles];
-			this.Ysep = new double[Nquantiles - 1];
+			this.NumQuantiles = numQuantiles;
+			this.Ymid = new double[numQuantiles];
+			this.P = new double[numQuantiles];
+			this.Ysep = new double[numQuantiles - 1];
 		}
+		
 		/// <summary>
 		/// Copies the quantization data.
 		/// </summary>
 		/// <returns></returns>
-		public Quantization Copy()
+		public Quantization Clone()
 		{
-			Quantization output = new Quantization(this.Nquantiles);
+			Quantization output = new Quantization(this.NumQuantiles);
 			output.Pmin = this.Pmin;
 			output.Pmax = this.Pmax;
-			for (int i = 0; i < this.Nquantiles; i++)
+			for (int i = 0; i < this.NumQuantiles; i++)
 			{
 				output.P[i] = this.P[i];
 				output.Ymid[i] = this.Ymid[i];
-				if(i < this.Nquantiles-1)
+				if(i < this.NumQuantiles-1)
 					output.Ysep[i] = this.Ysep[i];
 			}
 			return output;
 		}
+		
 		/// <summary>
 		/// Begins measuring the quantiles using an intermediate result calculated from training data.  This method is
 		/// called repeatedly during classifier optimization.
@@ -77,6 +85,7 @@ namespace Morpe
 		/// <param name="targetCat">[iDatum] The target category of each datum.</param>
 		/// <param name="catWeight">The weight assigned to each category label.</param>
 		/// <param name="totalWeight">The total weight for the entire sample.</param>
+		/// <param name="regressor">The object used to perform monotonic regression.</param>
 		public void Measure(
 			[NotNull] int[] yIdx,
 			[NotNull] float[] yValues,
@@ -84,10 +93,10 @@ namespace Morpe
 			byte targetCat,
 			[NotNull] double[] catWeight,
 			double totalWeight,
-			D1.MonotonicRegressor regressor)
+			[NotNull] D1.MonotonicRegressor regressor)
 		{
 			//	Target weight per bin.
-			double wPerBin = totalWeight / (double)(this.Nquantiles + 0.01);
+			double wPerBin = totalWeight / (double)(this.NumQuantiles + 0.01);
 			//	Keep track of the cumulative weight 
 			double wNextBin=wPerBin;
 			double w=0.0,dwThisBin;
@@ -139,7 +148,7 @@ namespace Morpe
 					wLastBin = w;
 					wNextBin += wPerBin;
 					//	The last bin is special.
-					if(iBin==this.Nquantiles-1)
+					if(iBin==this.NumQuantiles-1)
 					{
 						while(++iDatum<yValues.Length)
 						{
@@ -165,8 +174,10 @@ namespace Morpe
 					if (c == targetCat) wcBin += dwThis;
 				}
 			}
+			
 			//	Perform monotonic regression.
 			regressor.Run(this.P, (double[])this.P.Clone());
+			
 			//	Range limit
 			for(iBin=0; iBin<this.P.Length; iBin++)
 				this.P[iBin] = Math.Max(this.Pmin, Math.Min(this.Pmax, this.P[iBin]));

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Morpe
 {
 	/// <summary>
-	/// This encapsulates measurements of the conditioned and expanded training data made prior to optimiztion.  The purpose of these measurements is to
+	/// This encapsulates measurements of the conditioned and expanded training data made prior to optimization.  The purpose of these measurements is to
 	/// provide good initial estimates of the parameters to be optimized.  Also, some of these measurements are used to constrain the optimization algorithm.
 	/// </summary>
 	public class PreOptimizationAnalysis
@@ -16,24 +16,29 @@ namespace Morpe
 		/// The spatial conditioner.
 		/// </summary>
 		public SpatialConditioner Conditioner;
+		
 		/// <summary>
 		/// Measures the spatial conditioner based on training data.  Contains statistical information.
 		/// </summary>
 		public SpatialConditionMeasurer ConditionMeasurer;
+		
 		/// <summary>
 		/// Unidimensional accuracy-maximizing criteria for each conditioned-expanded dimension.
 		/// Indexed as [iCat][iCoeff]
 		/// </summary>
 		public UniCrit[][] Crits;
+		
 		/// <summary>
 		/// The initial values of the polynomial coefficients.  Indexed as [iPoly][iCoeff].
 		/// </summary>
 		public float[][] ParamInit;
+		
 		/// <summary>
 		/// The scale of data for each conditioned-expanded dimension.  These scales are the same
 		/// across all polynomials.
 		/// </summary>
 		public float[] ParamScale;
+		
 		/// <summary>
 		/// Deep copy.
 		/// </summary>
@@ -43,7 +48,7 @@ namespace Morpe
 			PreOptimizationAnalysis output = new PreOptimizationAnalysis();
 			
 			if(this.Conditioner!=null)
-				output.Conditioner = this.Conditioner.Copy();
+				output.Conditioner = this.Conditioner.Clone();
 
 			if(this.ConditionMeasurer!=null)
 				output.ConditionMeasurer = this.ConditionMeasurer.Copy();
@@ -67,6 +72,7 @@ namespace Morpe
 			
 			return output;
 		}
+		
 		/// <summary>
 		/// Creates a deep copy of this instance which is cast for a 2 category sub-problem where the target category
 		/// is cast as category 0 and the remaining samples are cast as category 1.
@@ -81,7 +87,7 @@ namespace Morpe
 			PreOptimizationAnalysis output = new PreOptimizationAnalysis();
 			
 			if (this.Conditioner != null)
-				output.Conditioner = this.Conditioner.Copy();
+				output.Conditioner = this.Conditioner.Clone();
 
 			if (this.Crits != null && this.Crits.Length > iCat)
 			{
