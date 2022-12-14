@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Morpe
+namespace Morpe.Numerics.D1
 {
 	/// <summary>
 	/// An object that performs monotonic regression.
@@ -14,6 +14,7 @@ namespace Morpe
 		/// The type of monotonic regression to be performed.  Suggest MonotonicRegressionType.Blended.
 		/// </summary>
 		public MonotonicRegressionType Type = MonotonicRegressionType.Blended;
+		
 		/// <summary>
 		/// Performs a monotonic regression of a tabulated function.  This method calculates a monotonic function that is approximately equal
 		/// to the tabulated function provided.
@@ -444,13 +445,15 @@ namespace Morpe
 			}
 			return nTrips;
 		}
+		
 		/// <summary>
 		/// Intermediate storage for the derivative and altered derivative.
 		/// </summary>
-		protected double[] dy;
+		private double[] dy;
+		
 		/// <summary>
 		/// Intermediate storage for an intermediate result (the non-decreasing function).
 		/// </summary>
-		protected double[] ynd;
+		private double[] ynd;
 	}
 }

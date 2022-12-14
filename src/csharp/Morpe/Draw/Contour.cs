@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using F2 = Morpe.Numerics.F2;
+
 namespace Morpe.Draw
 {
     /// <summary>
@@ -30,7 +32,7 @@ namespace Morpe.Draw
         }
         private int idContour = int.MinValue;
         public bool IsClosed = false;
-        public Rect DataRect;
+        public F2.Rect DataRect;
         public ContourVertex[] Vertices;
         /// <summary>
         /// Construct a new contour with the specified ID 
@@ -38,7 +40,7 @@ namespace Morpe.Draw
         /// <param name="IdContour">An integer ID number associated with this contour.</param>
         /// <param name="cv">A ContourVertex in the contour.</param>
         /// <param name="nMax">The maximum number of vertices that the contour could contain.</param>
-        public Contour(int IdContour, ContourVertex cv, int nMax, Rect DataRect)
+        public Contour(int IdContour, ContourVertex cv, int nMax, F2.Rect DataRect)
         {
             this.DataRect = DataRect;
             this.idContour = IdContour;
@@ -82,8 +84,8 @@ namespace Morpe.Draw
                 cv = cv.Next;
             }
         }
-        private Point[] paintCache;
-        private Rect lastPaintRect = Rect.Empty;
+        private F2.Point[] paintCache;
+        private F2.Rect lastPaintRect = F2.Rect.Empty;
         /*
         public PointF[] Paintable(PaintingInfo pi)
         {

@@ -12,22 +12,27 @@ namespace Morpe.Draw
         public static Color Blue { get { return new Color(0.0f, 0.0f, 0.0f, 1.0f); } }
         public static Color Green { get { return new Color(0.0f, 0.0f, 0.8f, 0.0f); } }
         public static Color Red { get { return new Color(0.0f, 1.0f, 0.0f, 0.0f); } }
+        
         /// <summary>
         /// Alpha channel value in the range [0, 1].  Min = 0 = Opaque, Max = 1 = Transparent.
         /// </summary>
         public float A;
+        
         /// <summary>
         /// Red channel value in the range [0, 1].
         /// </summary>
         public float R;
+        
         /// <summary>
         /// Green channel value in the range [0, 1].
         /// </summary>
         public float G;
+        
         /// <summary>
         /// Blue channel value in the range [0, 1].
         /// </summary>
         public float B;
+        
         /// <summary>
         /// Constructs a color having the given arguments.
         /// </summary>
@@ -42,8 +47,9 @@ namespace Morpe.Draw
             this.G = G;
             this.B = B;
         }
+        
         /// <summary>
-        /// Returns a gamma-adjusted color.
+        /// Returns a gamma-adjusted color.  The alpha channel does not get gamma correction.
         /// </summary>
         /// <param name="gamma">The gamma value.</param>
         /// <returns>The gamma-adjusted color.</returns>

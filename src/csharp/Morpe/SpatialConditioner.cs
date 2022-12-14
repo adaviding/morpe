@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Morpe.Validation;
 
 namespace Morpe
 {
@@ -17,49 +19,104 @@ namespace Morpe
 		/// Represents the origin of the feature space (specified in original units).  This variable has this.Ndims columns.
 		/// </summary>
 		public float[] Origin;
+		
 		/// <summary>
 		/// Represents the spread of data in the feature space (specified in original units).  This measure is similar to a standard
 		/// deviation, but it measures deviation from the origin instead of the mean.
 		/// </summary>
 		public float[] Spread;
+		
 		/// <summary>
 		/// The spatial dimensionality.
 		/// </summary>
-		public int Ndims;
+		public int NumDims;
+		
 		/// <summary>
 		/// Allocates memory for a new Spatial conditioner with the given dimensionality.
 		/// </summary>
-		/// <param name="nDims">The spatial dimensionality.</param>
-		public SpatialConditioner(int nDims)
+		/// <param name="numDims">The spatial dimensionality.</param>
+		public SpatialConditioner(int numDims)
 		{
-			this.Ndims = nDims;
-			this.Origin = new float[nDims];
-			this.Spread = new float[nDims];
+			this.NumDims = numDims;
+			this.Origin = new float[numDims];
+			this.Spread = new float[numDims];
 		}
+		
+		/// <summary>
+		/// Create a deep copy of the instance.
+		/// </summary>
+		/// <returns>A deep copy.</returns>
+		public SpatialConditioner Clone()
+		{
+			SpatialConditioner output = new SpatialConditioner(this.NumDims);
+			Array.Copy(this.Origin, output.Origin, this.NumDims);
+			Array.Copy(this.Spread, output.Spread, this.NumDims);
+			return output;
+		}
+		
 		/// <summary>
 		/// Conditions the data.
 		/// </summary>
-		/// <param name="data"></param>
-		public void Condition(CategorizedData data)
+		/// <param name="data">The data to be conditioned.</param>
+		public void Condition([NotNull] CategorizedData data)
 		{
-			for (int iCat = 0; iCat < data.Ncats; iCat++)
+			for (int iCat = 0; iCat < data.NumCats; iCat++)
 			{
-				for (int iRow = 0; iRow < data.Neach[iCat]; iRow++)
+				for (int iRow = 0; iRow < data.NumEach[iCat]; iRow++)
 				{
 					float[] xOld = data.X[iCat][iRow];
-					float[] xNew = new float[data.Ndims];
-					for (int iDim = 0; iDim < data.Ndims; iDim++)
+					float[] xNew = new float[data.NumDims];
+					for (int iDim = 0; iDim < data.NumDims; iDim++)
 					{
 						xNew[iDim] = (xOld[iDim] - this.Origin[iDim]) / this.Spread[iDim];
 					}
 				}
 			}
 		}
-		public SpatialConditioner Copy()
+		
+		/// <summary>
+		/// Deconditions the data.
+		/// </summary>
+		/// <param name="data">The data to be deconditioned.</param>
+		public void Decondition([NotNull] CategorizedData data)
 		{
-			SpatialConditioner output = new SpatialConditioner(this.Ndims);
-			Array.Copy(this.Origin, output.Origin, this.Ndims);
-			Array.Copy(this.Spread, output.Spread, this.Ndims);
+			for (int iCat = 0; iCat < data.NumCats; iCat++)
+			{
+				for (int iRow = 0; iRow < data.NumEach[iCat]; iRow++)
+				{
+					float[] xOld = data.X[iCat][iRow];
+					float[] xNew = new float[data.NumDims];
+					for (int iDim = 0; iDim < data.NumDims; iDim++)
+					{
+						xNew[iDim] = xOld[iDim] * this.Spread[iDim] + this.Origin[iDim];
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Creates a spatial conditioner for a subset of the dimensions included in this one.
+		/// </summary>
+		/// <param name="dims">The spatial dimensions to be selected.  Zero-based indices.</param>
+		/// <returns>The spatial conditioner for the given subspace.</returns>
+		[return: NotNull]
+		public SpatialConditioner ForSubspace(
+			[NotNull] int[] dims)
+		{
+			SpatialConditioner output = new SpatialConditioner(dims.Length);
+
+			for (int i = 0; i < dims.Length; i++)
+			{
+				int d = dims[i];
+				Chk.LessOrEqual(0, d, "A negative spatial dimension, {0}, was given.", d);
+				Chk.Less(d, this.NumDims, "A given dimension, {0}, was greater or equal to the limit of {1}.",
+					d,
+					this.NumDims);
+
+				output.Origin[i] = this.Origin[d];
+				output.Spread[i] = this.Spread[d];
+			}
+
 			return output;
 		}
 	}
