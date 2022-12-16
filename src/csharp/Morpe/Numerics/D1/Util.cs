@@ -3,69 +3,69 @@
     public static class Util
     {
         /// <summary>
-		/// Performs a binary search on a tabulated function.
-		/// </summary>
-		/// <param name="xTabulated">The tabulated function.  The values must be non-decreasing.</param>
-		/// <param name="xTarget">The target value.</param>
-		/// <returns>Returns the zero-based index of the target value within the range of the tabulated function.
-		/// It can be a continuous (non-integer) value, in the range [0.0, xTabulated.Length], representing an exact
-		/// placement between two tabulated values (as a linear-interpolant between those values).  It can also be
-		/// -1.0 if below the tabulated range, or xTabulated.Length if above the range.</returns>
-		public static double BinarySearchOfNonDecreasing(double[] xTabulated, double xTarget)
-		{
-			int iMin = 0;
-			if (xTarget < xTabulated[iMin]) return -1.0;
+        /// Performs a binary search on a tabulated function.
+        /// </summary>
+        /// <param name="xTabulated">The tabulated function.  The values must be non-decreasing.</param>
+        /// <param name="xTarget">The target value.</param>
+        /// <returns>Returns the zero-based index of the target value within the range of the tabulated function.
+        /// It can be a continuous (non-integer) value, in the range [0.0, xTabulated.Length], representing an exact
+        /// placement between two tabulated values (as a linear-interpolant between those values).  It can also be
+        /// -1.0 if below the tabulated range, or xTabulated.Length if above the range.</returns>
+        public static double BinarySearchOfNonDecreasing(double[] xTabulated, double xTarget)
+        {
+            int iMin = 0;
+            if (xTarget < xTabulated[iMin]) return -1.0;
 
-			int iMax = xTabulated.Length - 1;
-			if (xTarget > xTabulated[iMax]) return (double)xTabulated.Length;
+            int iMax = xTabulated.Length - 1;
+            if (xTarget > xTabulated[iMax]) return (double)xTabulated.Length;
 
-			int iHigh = iMax;
-			int iLow = iMin;
-			int iMid;
-			while (true)
-			{
-				iMid = (iHigh + iLow) / 2;
+            int iHigh = iMax;
+            int iLow = iMin;
+            int iMid;
+            while (true)
+            {
+                iMid = (iHigh + iLow) / 2;
 
-				//-----------------------------------------------------------------------------
-				//	Finish
-				//-----------------------------------------------------------------------------
-				if (xTabulated[iMid] == xTarget)
-				{
-					//	Put both indexes in range and rely on execution of next "if" statement to finish.
-					iLow = iHigh = iMid;
-				}
-				if (iHigh - iLow < 5)
-				{
-					//	Get iLow to be the lowest index of xTabulated possibly equal to the xTarget.
-					//	Otherwise it should be just below the xTarget.
-					while (iLow > iMin && xTabulated[iLow - 1] >= xTarget) iLow--;
-					while (iLow < iMax && xTabulated[iLow + 1] < xTarget) iLow++;
-					if (iLow < iMax && xTabulated[iLow + 1] == xTarget) iLow++;
-					//	Get iHigh to be the highest index of xTabulated possibly equal to the xTarget.
-					//	Otherwise it should be just above the xTarget.
-					while (iHigh < iMax && xTabulated[iHigh + 1] <= xTarget) iHigh++;
-					while (iHigh > iMin && xTabulated[iHigh - 1] > xTarget) iHigh--;
-					if (iHigh > iMin && xTabulated[iHigh - 1] == xTarget) iHigh--;
+                //-----------------------------------------------------------------------------
+                //    Finish
+                //-----------------------------------------------------------------------------
+                if (xTabulated[iMid] == xTarget)
+                {
+                    //    Put both indexes in range and rely on execution of next "if" statement to finish.
+                    iLow = iHigh = iMid;
+                }
+                if (iHigh - iLow < 5)
+                {
+                    //    Get iLow to be the lowest index of xTabulated possibly equal to the xTarget.
+                    //    Otherwise it should be just below the xTarget.
+                    while (iLow > iMin && xTabulated[iLow - 1] >= xTarget) iLow--;
+                    while (iLow < iMax && xTabulated[iLow + 1] < xTarget) iLow++;
+                    if (iLow < iMax && xTabulated[iLow + 1] == xTarget) iLow++;
+                    //    Get iHigh to be the highest index of xTabulated possibly equal to the xTarget.
+                    //    Otherwise it should be just above the xTarget.
+                    while (iHigh < iMax && xTabulated[iHigh + 1] <= xTarget) iHigh++;
+                    while (iHigh > iMin && xTabulated[iHigh - 1] > xTarget) iHigh--;
+                    if (iHigh > iMin && xTabulated[iHigh - 1] == xTarget) iHigh--;
 
-					if (iHigh == iLow) // One unique xTarget value.  Return its index.
-						return (double)iLow;
-					if (xTabulated[iLow] == xTarget) // Many unique xTarget values exist.  Return the center of the range.
-						return 0.5 * (double)(iLow + iHigh);
-					if (iHigh - iLow != 1)
-						//	Return linear interpolant.
-						return (double)iLow + (xTarget - xTabulated[iLow]) / (xTabulated[iHigh] - xTabulated[iLow]);
-				}
+                    if (iHigh == iLow) // One unique xTarget value.  Return its index.
+                        return (double)iLow;
+                    if (xTabulated[iLow] == xTarget) // Many unique xTarget values exist.  Return the center of the range.
+                        return 0.5 * (double)(iLow + iHigh);
+                    if (iHigh - iLow != 1)
+                        //    Return linear interpolant.
+                        return (double)iLow + (xTarget - xTabulated[iLow]) / (xTabulated[iHigh] - xTabulated[iLow]);
+                }
 
-				//-----------------------------------------------------------------------------
-				//	Continue
-				//-----------------------------------------------------------------------------
-				//  Reduce possible range by 1/2
-				if (xTabulated[iMid] > xTarget)
-					iLow = iMid;
-				else // Must be < xTarget
-					iHigh = iMid;
-			}
-		}
+                //-----------------------------------------------------------------------------
+                //    Continue
+                //-----------------------------------------------------------------------------
+                //  Reduce possible range by 1/2
+                if (xTabulated[iMid] > xTarget)
+                    iLow = iMid;
+                else // Must be < xTarget
+                    iHigh = iMid;
+            }
+        }
         
         /// <summary>
         /// Performs linear interpolation of a tabulated function y -> f(x).
@@ -95,28 +95,28 @@
         /// <param name="right">A zero-based index identifying the highest element of idx where sorting is conducted.</param>
         public static void QuickSortIndex(int[] idx, double[] x, int left, int right)
         {
-	        int i = left, j = right;
-	        int tmp;
-	        double pivot = x[idx[(left + right) / 2]];
+            int i = left, j = right;
+            int tmp;
+            double pivot = x[idx[(left + right) / 2]];
 
-	        //	Partition
-	        while (i <= j)
-	        {
-		        while (x[idx[i]] < pivot) i++;
-		        while (x[idx[j]] > pivot) j--;
-		        if (i <= j)
-		        {
-			        tmp = idx[i];
-			        idx[i++] = idx[j];
-			        idx[j--] = tmp;
-		        }
-	        }
+            //    Partition
+            while (i <= j)
+            {
+                while (x[idx[i]] < pivot) i++;
+                while (x[idx[j]] > pivot) j--;
+                if (i <= j)
+                {
+                    tmp = idx[i];
+                    idx[i++] = idx[j];
+                    idx[j--] = tmp;
+                }
+            }
 
-	        //	Recursion
-	        if (left < j)
-		        QuickSortIndex(idx, x, left, j);
-	        if (i < right)
-		        QuickSortIndex(idx, x, i, right);
+            //    Recursion
+            if (left < j)
+                QuickSortIndex(idx, x, left, j);
+            if (i < right)
+                QuickSortIndex(idx, x, i, right);
         }
     }
 }
