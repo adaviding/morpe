@@ -55,10 +55,10 @@ namespace Morpe.Numerics.D
             {
                 for (int i = 0; i < len; i++)
                 for (int j = 0;j < len;j++)
-                    //	Initialize
+                    //    Initialize
                     this.lhsMatrix[i][j] = matrix[i,j];
             
-                //	Inversion by LU decomposition and then back-substitution
+                //    Inversion by LU decomposition and then back-substitution
                 if(!this.LuDecomp(ref output))
                     return Double.NaN;
 
@@ -99,10 +99,10 @@ namespace Morpe.Numerics.D
                 int i, j;
                 for (i = 0; i < len; i++)
                 for (j = 0; j < len; j++)
-                    //	Initialize
+                    //    Initialize
                     this.lhsMatrix[i][j] = matrix[i, j];
 
-                //	Inversion by LU decompusition and then back-substitution
+                //    Inversion by LU decompusition and then back-substitution
                 if (!this.LuDecomp(ref determinant))
                     return false;
                 else

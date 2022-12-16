@@ -49,7 +49,7 @@ namespace Morpe.Draw
             int ct = 1;
             ContourVertex cvFirst = cv;
             ContourVertex cvLast = cv;
-            //	Make cvLast keep going until end.
+            //    Make cvLast keep going until end.
             while (cvLast.Next != null)
             {
                 if (cvLast.Next == cvFirst)
