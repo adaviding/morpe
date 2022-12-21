@@ -70,6 +70,29 @@ namespace Morpe.Numerics.D
         }
 
         /// <summary>
+        /// Gets the index of the maximum entry in the given vector 'x'.
+        /// </summary>
+        /// <param name="x">The given vector.</param>
+        /// <returns>The zero-based index of the maximum entry.</returns>
+        public static int ArgMax([NotNull] double[] x)
+        {
+            int output = -1;
+            double max = double.MinValue;
+
+            for (int i = 0; i < x.Length; i++)
+            {
+                double xx = x[i];
+                if (xx > max)
+                {
+                    max = xx;
+                    output = i;
+                }
+            }
+
+            return output;
+        }
+
+        /// <summary>
         /// Computes the Cholesky factor of a symmetric, positive semidefinite matrix.
         /// </summary>
         /// <param name="matrix">The matrix to be factored: A symmetric, positive semidefinite matrix.  Only the
@@ -135,7 +158,7 @@ namespace Morpe.Numerics.D
         public static double NormL2(
             [NotNull] double[] x)
         {
-            double output = x.Sum(a => a * a);
+            double output = Math.Sqrt(x.Sum(a => a * a));
             return output;
         }
 

@@ -18,7 +18,7 @@ namespace Test.Morpe
                 rank: 1,
                 numQuantiles: 14);
 
-            SolverOptions solverOps = new SolverOptions();
+            TrainingOptions trainingOps = new TrainingOptions();
 
             Classifier classifier = new Classifier(
                 numCats: numEach.Length,

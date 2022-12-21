@@ -1,23 +1,29 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.InteropServices;
+using Morpe.Validation;
 
 namespace Morpe
 {
     /// <summary>
     /// Identifies a classifier based on polynomial rank and dimensionality, so that its performance may be compared
     /// to other classifiers having slightly different attributes.
+    ///
+    /// This can be used as a dictionary key.
     /// </summary>
-    public class ClassifierId
+    public class ClassifierId : IEquatable<ClassifierId>
     {
         /// <summary>
         /// The spatial dimensions included by the classifier, listed in ascending order without duplicates.
         /// </summary>
-        public int[] Dims;
+        public IReadOnlyList<int> Dims => this.dims;
 
         /// <summary>
         /// The rank of the polynomial used by the classifier.
         /// </summary>
-        public int Rank;
+        public int Rank { get; private set; }
 
         /// <summary>
         /// If this is a "dual" classifier, then this is the zero-based index of the target category; otherwise this is
@@ -25,7 +31,7 @@ namespace Morpe
         ///
         /// Dual classifiers are only used when the number of categories is greater than 2.  
         /// </summary>
-        public int? TargetCat;
+        public int? TargetCat { get; private set; }
 
         /// <summary>
         /// Constructs an instance having the specified properties.
@@ -38,7 +44,9 @@ namespace Morpe
             int rank,
             int? targetCat)
         {
-            this.Dims = dims.ToArray();
+            Chk.NotNull(dims, nameof(dims));
+
+            this.dims = (int[])dims.Clone();
             this.Rank = rank;
             this.TargetCat = targetCat;
         }
@@ -46,10 +54,10 @@ namespace Morpe
         [return: NotNull]
         public ClassifierId Clone()
         {
-            return new ClassifierId(
-                dims: this.Dims.ToArray(),
-                rank: this.Rank,
-                targetCat: this.TargetCat);
+            ClassifierId output = (ClassifierId)this.MemberwiseClone();
+            output.dims = this.dims.ToArray();
+            
+            return output;
         }
         
         [return: MaybeNull]
@@ -65,5 +73,73 @@ namespace Morpe
 
             return output;
         }
+
+        /// <summary>
+        /// Compares two instances by value.
+        /// </summary>
+        /// <param name="that">The other instance.</param>
+        /// <returns>Returns true if this instance is equal to the other one, false otherwise.</returns>
+        public bool Equals(ClassifierId that)
+        {
+            if (that == null)
+                return false;
+            
+            if (that.Rank != this.Rank)
+                return false;
+            
+            if (that.TargetCat != this.TargetCat)
+                return false;
+
+            if (!Test.EqualListing(that.Dims, this.Dims))
+                return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Compares two instances by value.
+        /// </summary>
+        /// <param name="that">The other instance.</param>
+        /// <returns>Returns true if this instance is equal to the other one, false otherwise.</returns>
+        public override bool Equals(object that)
+        {
+            if (that != null && that is ClassifierId cid)
+                return Equals(cid);
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the hash code.  The value is cached for better performance.
+        /// </summary>
+        /// <returns>The hash code.</returns>
+        public override int GetHashCode()
+        {
+            if (!this.hashCode.HasValue)
+            {
+                HashCode hasher = new HashCode();
+                hasher.Add(this.dims.Length);
+                hasher.Add(this.Rank);
+                hasher.Add(this.TargetCat);
+                foreach (int dim in this.dims)
+                {
+                    hasher.Add(dim);
+                }
+
+                this.hashCode = hasher.ToHashCode();
+            }
+
+            return this.hashCode.Value;
+        }
+        
+        /// <summary>
+        /// The spatial dimensions included by the classifier, listed in ascending order without duplicates.
+        /// </summary>
+        private int[] dims;
+
+        /// <summary>
+        /// The cached hash code.
+        /// </summary>
+        private int? hashCode;
     }
 }

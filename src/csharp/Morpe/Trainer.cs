@@ -1,12 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
+using Morpe.Validation;
 
 using D  = Morpe.Numerics.D;
 using D1 = Morpe.Numerics.D1;
+using F  = Morpe.Numerics.F;
 using F1 = Morpe.Numerics.F1;
+using I  = Morpe.Numerics.I;
 using I1 = Morpe.Numerics.I1;
 
 namespace Morpe
@@ -17,523 +22,668 @@ namespace Morpe
     public class Trainer
     {
         /// <summary>
-        /// The relative importance of each category on the solution.  This is important when calculating accuracy and entropy.
+        /// The default number of quantiles for the trained MoRPE classifier.
         /// </summary>
-        public double[] CatWeights;
+        public static readonly int DefaultNumQuantiles = 32;
         
         /// <summary>
-        /// The trained classifier.
+        /// Trains a single classifier without the <see cref="TrainingContext"/>.
         /// </summary>
-        public Fitted<Classifier> Classifier;
-        
-        /// <summary>
-        /// Returns true if the trainer is currently training a classifier.
-        /// </summary>
-        public bool IsTraining { get { return this.trainerIsRunning; } }
-        private bool trainerIsRunning = false;
-        /// <summary>
-        /// The number of quantiles used.
-        /// </summary>
-        public int Nquantiles = 15;
-        
-        /// <summary>
-        /// Solver options used during training.  Prior to training, this member contains the default options.
-        /// </summary>
-        public SolverOptions Options { get { return this.options; } }
-        protected SolverOptions options = null;
-        
-        /// <summary>
-        /// Construct a trainer for a given classifier.
-        /// </summary>
-        /// <param name="classifier">The classifier to be trained.</param>
-        public Trainer(Classifier classifier)
+        /// <param name="cancellationToken">If triggered, this thread will throw a <see cref="OperationCanceledException"/>.</param>
+        /// <param name="data">The classification data.</param>
+        /// <param name="id">The ID of the classifier to be trained.</param>
+        /// <param name="options">The training options.</param>
+        /// <param name="analysis">The analysis of classifier data.</param>
+        /// <param name="parameterStarts">The starting points of the given classifiers.</param>
+        /// <param name="taskScheduler">The task scheduler which limits the concurrency of classifier training.</param>
+        /// <returns>The trained classifier.</returns>
+        public static TrainedClassifier Train(
+            CancellationToken cancellationToken,
+            [NotNull] CategorizedData data,
+            [NotNull] ClassifierId id,
+            [NotNull] TrainingOptions options,
+            [NotNull] PreOptimizationAnalysis analysis,
+            [NotNull] List<float[][]> parameterStarts,
+            [NotNull] TaskScheduler taskScheduler)
         {
-            this.Classifier = new Fitted<Classifier>(classifier, double.NaN);
-            this.CatWeights = new double[classifier.NumCats];
-        }
-        
-        /// <summary>
-        /// The total amount of weight across all training data.
-        /// </summary>
-        protected double totalWeight;
-        
-        /// <summary>
-        /// A container for the output of analyses performed prior to optimization.
-        /// </summary>
-        public PreOptimizationAnalysis Analysis;
-        
-        /// <summary>
-        /// Trains the classifier by optimizing parameters based on the training data using specified solver options.
-        /// This can only be called once.
-        /// </summary>
-        /// <param name="data">The training data.
-        /// WARNING:  In order to save memory, this data is altered in palce (instead of copying a new object).</param>
-        /// <param name="ops">Sets the member variable <see cref="Classifier.Options"/>.  If a value is not provided, default options are used.</param>
-        /// <param name="analysis">The pre-optimization analysis <see cref="Classifier.Analysis"/>.  If a value is not provided, default options are used.</param>
-        public async Task<Trainer> Train(CategorizedData data, SolverOptions ops=null, PreOptimizationAnalysis analysis=null)
-        {
-            lock (this)
+            TaskFactory<TrainedClassifier> taskFactory = new TaskFactory<TrainedClassifier>(taskScheduler);
+            
+            // Start a task for each parameter start.
+            Task<TrainedClassifier>[] tasks = new Task<TrainedClassifier>[parameterStarts.Count];
+
+            for (int i = 0; i < parameterStarts.Count; i++)
             {
-                if (this.trainerIsRunning)
-                    throw new ApplicationException("The Train method can only be called once at a time.  You might consider creating multiple Trainer objects.");
-                this.trainerIsRunning = true;
+                tasks[i] = taskFactory.StartNew(
+                    () => Train(cancellationToken, data, id, options, analysis, parameterStarts[i]),
+                    cancellationToken);
             }
-            try
+
+            Task.WaitAll(tasks);
+
+            // If any task did not complete successfully, we will throw an exception.
+            if (tasks.Any(a => !a.IsCompletedSuccessfully))
             {
-                if (data.NumCats != this.Classifier.Instance.NumCats)
-                    throw new ArgumentException("The number of categories in the classifier must be equal to the number of categories in the training set.");
+                cancellationToken.ThrowIfCancellationRequested();
+                
+                // fixme throw appropriate exception
 
-                //-----------------------
-                //    Set the solver otions.
-                //-----------------------
-                if (ops == null)
-                    ops = new SolverOptions();
-                this.options = ops;
+                Task<TrainedClassifier>[] canceled = tasks.Where(a => a.IsCanceled).ToArray();
+                Task<TrainedClassifier>[] failed = tasks.Where(a => a.IsFaulted).ToArray();
+                Task<TrainedClassifier>[] succeeded = tasks.Where(a => a.IsCompletedSuccessfully).ToArray();
 
-                //-----------------------
-                //    Compute CatWeights.
-                //-----------------------
-                double cwTotal = 0.0;
-                this.totalWeight = 0.0;  // Total weight across all training data.
-                if (this.options.WeightingRule == WeightingRule.EqualPriors)
+                string message = $"Of {tasks.Length} tasks, {canceled.Length} were canceled, {succeeded.Length} succeeded, and {failed.Length} failed.";
+
+                if (failed.Length == 0)
                 {
-                    for (int iCat = 0; iCat < data.NumCats; iCat++)
-                    {
-                        double w = (double)data.NumTotal / (double)data.NumEach[iCat] / (double)data.NumCats;
-                        this.CatWeights[iCat] = w;
-                        cwTotal += w;
-                        this.totalWeight += w * (double)data.NumEach[iCat];
-                    }
-                }
-                else if (this.options.WeightingRule == WeightingRule.ObservedPriors)
-                {
-                    for (int iCat = 0; iCat < data.NumCats; iCat++)
-                    {
-                        this.totalWeight += (float)data.NumEach[iCat];
-                        this.CatWeights[iCat] = 1.0f;
-                        cwTotal += 1.0f;
-                    }
-                }
-                else
-                    throw new ApplicationException("Unhandled weighting rule.");
-
-                //    [iDatum] Used for identifying the category label for each datum.
-                byte[] catVec = new byte[data.NumTotal];
-                //    [iDatum] Used for storing the polynomial calculation for each datum.
-                float[][] yVec = Util.NewArrays<float>(this.Classifier.Instance.NumPoly, data.NumTotal);
-                //    [iPoly][iDatum]  Used for sorting data rows.  Sort order is preserved for each polynomial.
-                int[][] idxVec = Util.NewArrays<int>(this.Classifier.Instance.NumPoly,data.NumTotal);
-
-                //-----------------------
-                //    Prepare category labels for each datum.
-                //-----------------------
-                int iDatum = 0;
-                for (int iCat = 0; iCat < data.NumCats; iCat++)
-                {
-                    int nRows = data.X[iCat].Length;
-                    for (int iRow = 0; iRow < nRows; iRow++)
-                        catVec[iDatum++] = (byte)iCat;
+                    throw new OperationCanceledException(message);
                 }
 
-                if (analysis != null)
-                    this.Analysis = analysis;
-                else
+                throw new AggregateException(message, failed.Select(a => a.Exception));
+            }
+
+            // At this point we know that all tasks completed successfully.
+            TrainedClassifier[] trained = tasks
+                .Select(a => a.Result)
+                .ToArray();
+            
+            TrainedClassifier output = TrainedClassifier.SelectLowestEntropyAndMerge(trained);
+            return output;
+        }
+
+        /// <summary>
+        /// Trains a single classifier without the <see cref="TrainingContext"/>.
+        /// </summary>
+        /// <param name="cancellationToken">If triggered, this thread will throw a <see cref="OperationCanceledException"/>.</param>
+        /// <param name="data">The classification data.</param>
+        /// <param name="id">The ID of the classifier to be trained.</param>
+        /// <param name="options">The training options.</param>
+        /// <param name="analysis">The analysis of classifier data.</param>
+        /// <param name="parameterStart">The starting point for the classifier parameters.</param>
+        /// <returns>The trained classifier</returns>
+        public static TrainedClassifier Train(
+            CancellationToken cancellationToken,
+            [NotNull] CategorizedData data,
+            [NotNull] ClassifierId id,
+            [NotNull] TrainingOptions options,
+            [NotNull] PreOptimizationAnalysis analysis,
+            [NotNull] float[][] parameterStart)
+        {
+            Chk.Equal(id.Dims.Count, data.NumDims, "The number of dimensions is specified inconsistently.");
+            Chk.NotNull(options, nameof(options));
+            Chk.Less(0, options.NumberOfApproaches, "The number of approaches must be a positive integer.");
+
+            // This is the container for output.
+            TrainedClassifier output = new TrainedClassifier(id);
+
+            // This will regress the quantization noise onto an arbitrary monotonic function.
+            D1.MonotonicRegressor regressor = new D1.MonotonicRegressor();
+            
+            // Here we use simple logic to pick the number of quantiles.  In the future we may want to use logic
+            // which is based on the sample size.
+            int numQuantiles = DefaultNumQuantiles;
+            
+            // The approximate number of samples per quantile.
+            double numPerQuantile = (double)data.NumTotal / numQuantiles;
+            
+            // This is the range of probabilities that the classifier can produce.
+            D1.Range pRange = new D1.Range(
+                min: 1.0 / numPerQuantile,
+                max: 1.0);
+            pRange.Max -= pRange.Min;
+
+            // Figure out how many categories we are training.
+            int numCats = data.NumCats;
+            if (id.TargetCat != null)
+            {
+                // This means we are training a "dual" classifier where the data from multiple (more than 2) categories
+                // is separated into 2 categories:
+                //
+                // 1.  The data from the target category
+                // 2.  The combined data from all other categories.
+                numCats = 2;
+            }
+            
+            // Figure out how many polynomial coefficients we are training.
+            int numPoly = numCats;
+            if (numCats == 2)
+            {
+                // For the 2-category problem, there is only 1 set of polynomial coefficients.
+                numPoly = 1;
+            }
+
+            // The polynomial coefficients are defined like this (for each polynomial).
+            Poly poly = new Poly(
+                numDims: data.NumDims,
+                rank: id.Rank);
+            
+            // This is how many free parameters we are training.
+            int numParams = numPoly * poly.NumCoeffs;
+            
+            // This is the scale of each parameter (for each polynomial).  It is possible that we have scales
+            // for higher rank polynomial coefficients, so truncate.
+            float[] paramScale = analysis.ParamScale;
+            if (paramScale.Length > poly.NumCoeffs)
+            {
+                // This creates a new array which is a truncated version of the original.
+                Array.Resize(ref paramScale, poly.NumCoeffs);
+            }
+            
+            // Figure out how to weight each training datum.
+            CategoryWeights weights = CategoryWeights.Measure(
+                numEach: data.NumEach,
+                rule: options.CategoryWeightingRule,
+                targetCategory: id.TargetCat);
+            
+            CategoryWeights[] dualWeights = null;
+            if (numCats > 2)
+            {
+                dualWeights = CategoryWeights.MeasureAllDuals(
+                    numEach: data.NumEach,
+                    rule: options.CategoryWeightingRule);
+            }
+            
+            // [data.NumTotal] The category label of each training datum.
+            byte[] catVec = data.GetCategoryVector();
+            
+            // [numPoly][data.NumTotal] The output of the polynomial function for each polynomial, and each training datum.
+            float[][] yVec = F.Util.JaggedSquare(numPoly, data.NumTotal);
+            
+            // [numPoly][data.NumTotal] The index which sorts the value of 'y' for each polynomial.
+            int[][] idxVec = I.Util.JaggedSquare(numPoly, data.NumTotal);
+            for (int i = 0; i < numPoly; i++)
+                I.Util.FillSeries(idxVec[i]);
+
+            if (numParams == 1)
+            {
+                // The solution to the 1-parameter problem is already known.  We can just set the parameters without
+                // searching and then build the classifier.
+                
+                // The polynomial function that points to the target cat.
+                int iTargetPoly = id.TargetCat ?? 0;
+                
+                // Allocate a classifier and fill it in manually.
+                output.Classifier = new Classifier(
+                    numCats: numCats,
+                    numDims: poly.NumDims,
+                    rank: id.Rank,
+                    numQuantiles: numQuantiles,
+                    probabilityRange: pRange.Clone(),
+                    parameters: new float[][] { new float[]
+                        {
+                            analysis.Crits[iTargetPoly, 0].TargetUpper  // It just needs to point towards the target category.
+                                ? +1f
+                                : -1f
+                        }});
+
+                
+                // The same solution would be found every time, so we don't need any more starts.
+                output.NumAproaches = Int32.MaxValue;
+                output.AddGoodStep();
+
+                // Build the classifier.
+                BuildClassifier(
+                    cancellationToken: cancellationToken,
+                    data: data,
+                    regressor: regressor,
+                    catWeights: weights,
+                    dualCatWeights: dualWeights,
+                    catVec: catVec,
+                    yVec: yVec,
+                    idxVec: idxVec,
+                    training: output);
+
+                // Measure the fit.
+                (output.Accuracy, output.Entropy) = MeasureFit(
+                    cancellationToken: cancellationToken,
+                    data: data,
+                    catWeights: weights,
+                    catVec: catVec,
+                    yVec: yVec,
+                    training: output);
+                Chk.NotNull(output.Entropy, "{0}.{1}", nameof(output), nameof(output.Entropy));
+
+                return output;
+            }
+
+            // Get ready to wander through the parameter space.
+            ParameterSpaceWanderer wanderer = new ParameterSpaceWanderer(numPoly, paramScale);
+
+            for (int iApproach = 0; iApproach < options.NumberOfApproaches; iApproach++)
+            {
+                // Check for cancellation.
+                cancellationToken.ThrowIfCancellationRequested();
+                
+                // Initialize the classifier.
+                TrainedClassifier approach = new TrainedClassifier(
+                    id: id,
+                    classifier: new Classifier(
+                        numCats,
+                        data.NumDims,
+                        id.Rank,
+                        numQuantiles,
+                        probabilityRange: pRange.Clone(),
+                        parameters: Util.Clone(parameterStart)));
+                
+                // Build the classifier.
+                BuildClassifier(
+                    cancellationToken: cancellationToken,
+                    data: data,
+                    regressor: regressor,
+                    catWeights: weights,
+                    dualCatWeights: dualWeights,
+                    catVec: catVec,
+                    yVec: yVec,
+                    idxVec: idxVec,
+                    training: approach);
+                
+                // Measure the fit.
+                (approach.Accuracy, approach.Entropy) = MeasureFit(
+                    cancellationToken: cancellationToken,
+                    data: data,
+                    catWeights: weights,
+                    catVec: catVec,
+                    yVec: yVec,
+                    training: approach);
+                Chk.NotNull(approach.Entropy, "{0}.{1}", nameof(approach), nameof(approach.Entropy));
+                
+                approach.AddGoodStep();
+                
+                // ------------------------------
+                // Inner optimization method
+                // ------------------------------
+                TrainedClassifier attempt = approach.Clone();
+                
+                int ctStreakOfWanderingSteps = 0;
+                int maxStreakOfWanderingSteps = Math.Min(12, numParams);
+                double entropyWhenStartedWandering = approach.Entropy.Value;
+                
+                int ctStreakOfInsufficientLineSearches = 0;
+                int maxStreakOfInsufficientLineSearches = 2;
+                
+                float[][] del;
+                float[][] gradient = Util.NewArrays<float>(numPoly, paramScale.Length);
+
+                float stepSize = options.ParamDiffMax;
+                while (stepSize > options.ParamDiffMin)
                 {
-                    //-----------------------
-                    //    Condition the data and perform a polynomial expansion.
-                    //-----------------------
-                    this.Analysis = new PreOptimizationAnalysis();
-                    this.Analysis.ConditionMeasurer = SpatialConditionMeasurer.Measure(data);
-                    this.Analysis.Conditioner = this.Analysis.ConditionMeasurer.Conditioner();
-                    this.Analysis.Conditioner.Condition(data);
-                    data.Expand(this.Classifier.Instance.Coeffs);
+                    // Wander
+                    del = wanderer.NextBasis(stepSize);
+                    
+                    // This is set to true when we need to shrink the step size on the next round.
+                    bool shrinkStep = false;
+                    
+                    // Start with 'approach' which represents our best fit so far (for this approach)
+                    Util.Copy(approach.Classifier.Params, attempt.Classifier.Params);
+                    
+                    // Wander by adding 'del'
+                    F.Util.Add(del, attempt.Classifier.Params);
+                    
+                    // Norm the parameters. 
+                    F.Util.Scale(attempt.Classifier.Params, (float)(1.0/F.Util.NormL2(attempt.Classifier.Params)));
+                    
+                    // Build the classifier.
+                    BuildClassifier(
+                        cancellationToken: cancellationToken,
+                        data: data,
+                        regressor: regressor,
+                        catWeights: weights,
+                        dualCatWeights: dualWeights,
+                        catVec: catVec,
+                        yVec: yVec,
+                        idxVec: idxVec,
+                        training: attempt);
+                    
+                    // Measure the fit.
+                    (attempt.Accuracy, attempt.Entropy) = MeasureFit(
+                        cancellationToken: cancellationToken,
+                        data: data,
+                        catWeights: weights,
+                        catVec: catVec,
+                        yVec: yVec,
+                        training: attempt);
+                    Chk.NotNull(attempt.Entropy, "{0}.{1}", nameof(attempt), nameof(attempt.Entropy));
 
-                    this.Analysis.ParamScale = new float[this.Classifier.Instance.Coeffs.NumCoeffs];
-                    this.Analysis.ParamInit = Util.NewArrays<float>(this.Classifier.Instance.NumCats, this.Classifier.Instance.Coeffs.NumCoeffs);
+                    // Update the gradient.
+                    double dEntropy = attempt.Entropy.Value - approach.Entropy.Value;
+                    F.Util.AddScaled(-dEntropy, del, gradient);
 
-                    //if (ops.InitializeParams)
-                    this.Analysis.Crits = Util.NewArrays<UniCrit>(this.Classifier.Instance.NumCats, this.Classifier.Instance.Coeffs.NumCoeffs);
-
-                    //-----------------------
-                    //    Get the parameter scale.
-                    //-----------------------
-                    float scale;
-                    int i15 = (int)(0.5 + 0.15 * (double)(data.NumTotal - 1));
-                    int i50 = (int)(0.5 + 0.50 * (double)(data.NumTotal - 1));
-                    int i85 = (int)(0.5 + 0.85 * (double)(data.NumTotal - 1));
-                    float[] xVec = yVec[0];
-                    for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.NumCoeffs; iCoeff++)
+                    if (dEntropy < 0.0)
                     {
-                        //    Quantiles determine the parameter scale.
-                        I1.Util.FillSeries(idxVec[0]);
-                        iDatum = 0;
-                        for (int iCat = 0; iCat < data.NumCats; iCat++)
-                        {
-                            int nSamp = data.NumEach[iCat];
-                            for (int iSamp = 0; iSamp < nSamp; iSamp++)
-                                xVec[iDatum++] = data.X[iCat][iSamp][iCoeff];
-                        }
-                        F1.Util.QuickSortIndex(idxVec[0], xVec, 0, xVec.Length - 1);
-                        scale = xVec[idxVec[0][i85]] - xVec[idxVec[0][i15]];
-                        this.Analysis.ParamScale[iCoeff] = (float)(1.0 / scale);
-
-                        //if (ops.InitializeParams)
-                        //{
-                        //    Get univariate classification criteria to get a first-order clue about the saliency of each feature.
-                        for (int iCat = 0; iCat < data.NumCats; iCat++)
-                            this.Analysis.Crits[iCat][iCoeff] = UniCrit.MaximumAccuracy((byte)iCat, catVec, xVec, idxVec[0], this.CatWeights);
-                        //}
+                        // This is a good step.  Update our value of 'approach'.
+                        attempt.AddGoodStep();
+                        approach = attempt;
                     }
-
-                    //-----------------------
-                    //    Compute initial params.
-                    //-----------------------
-                    //    Compute the expected minimum value for the univariate 2-category classification accuracy.
-                    double[] accMin = new double[data.NumCats];
-                    for (int iCat = 0; iCat < data.NumCats; iCat++)
+                    else
                     {
-                        accMin[iCat] = (this.totalWeight - this.CatWeights[iCat] * (double)data.NumEach[iCat]) / this.totalWeight;
-                        if (accMin[iCat] < 0.5)
-                            accMin[iCat] = 1.0 - accMin[iCat];
+                        // This is a bad step.
+                        approach.AddBadStep();
                     }
-
-                    //    The magnitude of each parameter is a function of univariate classification accuracy for the corresponding spatial dimension.
-                    double invNtotal = 1.0 / data.NumTotal;
-                    for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.NumCoeffs; iCoeff++)
+                    
+                    // Do we have enough information to do a gradient line search?
+                    if (++ctStreakOfWanderingSteps >= maxStreakOfWanderingSteps)
                     {
-                        if (this.Classifier.Instance.NumPoly == 1)
+                        // See if wandering is reducing entropy enough.
+                        dEntropy = approach.Entropy.Value - entropyWhenStartedWandering;
+                        Chk.LessOrEqual(dEntropy, 0.0, "The change in entropy should be non-positive after wandering.");
+                        shrinkStep &= -dEntropy < options.EntropyTol;
+                        
+                        // Line search the gradient.
+                        dEntropy = LineSearch(
+                            cancellationToken,
+                            data,
+                            regressor,
+                            weights,
+                            dualWeights,
+                            catVec,
+                            yVec,
+                            idxVec,
+                            gradient,
+                            minStepSize: stepSize/4f,
+                            training: ref approach);
+                        
+                        Chk.LessOrEqual(dEntropy, 0.0, "The change in entropy should be non-positive after a line search.");
+                        
+                        // If line searching produced an insufficient entropy change ...
+                        if (-dEntropy < options.EntropyTol)
                         {
-                            double tAcc = 0.5 *
-                                (
-                                    Math.Max(0.0, this.Analysis.Crits[0][iCoeff].Accuracy - accMin[0])
-                                    +
-                                    Math.Max(0.0, this.Analysis.Crits[1][iCoeff].Accuracy - accMin[1])
-                                );
-                            tAcc /= (1.0 - 0.5 * (accMin[0] + accMin[1]) + invNtotal);
-                            if (this.Analysis.Crits[0][iCoeff].TargetUpper)
-                                this.Analysis.ParamInit[0][iCoeff] = (float)tAcc * this.Analysis.ParamScale[iCoeff];
-                            else
-                                this.Analysis.ParamInit[0][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
+                            ctStreakOfInsufficientLineSearches++;
 
-                        }
-                        else
-                        {
-                            for (int iPoly = 0; iPoly < this.Classifier.Instance.NumPoly; iPoly++)
+                            if (ctStreakOfInsufficientLineSearches >= maxStreakOfInsufficientLineSearches)
                             {
-                                double tAcc = Math.Max(0.0, this.Analysis.Crits[iPoly][iCoeff].Accuracy - accMin[iPoly]);
-                                tAcc /= (1.0 - accMin[iPoly] + invNtotal);
-                                if (this.Analysis.Crits[iPoly][iCoeff].TargetUpper)
-                                    this.Analysis.ParamInit[iPoly][iCoeff] = (float)tAcc * this.Analysis.ParamScale[iCoeff];
-                                else
-                                    this.Analysis.ParamInit[iPoly][iCoeff] = -(float)tAcc * this.Analysis.ParamScale[iCoeff];
+                                // Shrink the step.
+                                shrinkStep = true;
+                                ctStreakOfInsufficientLineSearches = 0;
                             }
                         }
+
+                        // Reset the gradient.
+                        ctStreakOfWanderingSteps = 0;
+                        Util.SetValues(0f, gradient);
+                        entropyWhenStartedWandering = approach.Entropy.Value;
+                    }
+
+                    if (shrinkStep)
+                    {
+                        stepSize /= options.ParamShrinkFactor;
+                        shrinkStep = false;
                     }
                 }
 
-                //-----------------------
-                //    Set classifier parameters.
-                //-----------------------
-                if (ops.InitializeParams)
+                output = TrainedClassifier.SelectLowestEntropyAndMerge(output, approach);
+            }
+
+            return output;
+        }
+
+        /// <summary>
+        /// Builds the classifier using the given information.
+        /// </summary>
+        /// <param name="cancellationToken">If triggered, this thread will throw a <see cref="OperationCanceledException"/>.</param>
+        /// <param name="data">The training data.</param>
+        /// <param name="regressor">The object that performs monotonic regression.</param>
+        /// <param name="catWeights">The category weights.</param>
+        /// <param name="dualCatWeights">The category weights for the "dual" problems (if they exist).</param>
+        /// <param name="catVec">The category label for each training data.  See <see cref="CategorizedData.GetCategoryVector"/>.</param>
+        /// <param name="yVec">On input, the working memory must be initialized with the size:  [numPoly][catVec.Length].
+        /// On output, this contains the y-values (the polynomial output) for each datum.</param>
+        /// <param name="idxVec">On input, the working memory must be initialized with the size:  [numPoly][catVec.Length],
+        /// and each polynomial must be initialized with I.Util.FillSeries, or any randomly shuffled ordering of these
+        /// values.  On output, this contains the sort order (ascending) for the y-values for each polynomial.</param>
+        /// <param name="training">On input, the value of <see cref="TrainedClassifier.Id"/> must be set.  On output,
+        /// the classifier is built out and the fit (accuracy, entropy) have been measured.</param>
+        private static void BuildClassifier(
+            CancellationToken cancellationToken,
+            [NotNull] CategorizedData data,
+            [NotNull] D1.MonotonicRegressor regressor,
+            [NotNull] CategoryWeights catWeights,
+            [MaybeNull] CategoryWeights[] dualCatWeights,
+            [NotNull] byte[] catVec,
+            [NotNull] float[][] yVec,
+            [NotNull] int[][] idxVec,
+            [NotNull] TrainedClassifier training)
+        {
+            int? targetCat = training.Id?.TargetCat;
+
+            Chk.False(training.Classifier.NumPoly > 1 && targetCat != null,
+                "For multiple polynomials, the target category should be null.");
+            
+            // First we need to calculate the output of each polynomial expression (y-value) for each datum.
+            for (int iPoly = 0; iPoly < training.Classifier.NumPoly; iPoly++)
+            {
+                int iDatum = 0;
+
+                for (int iCat = 0; iCat < data.NumCats; iCat++)
                 {
-                    Util.Copy<float>(this.Analysis.ParamInit, this.Classifier.Instance.Params);
+                    int numInCat = data.NumEach[iCat];
+                    for (int jDatum = 0; jDatum < numInCat; jDatum++)
+                    {
+                        // Evaluate polynomial to get y-values.
+                        yVec[iPoly][iDatum++] =
+                            (float)training.Classifier.EvalPolyFromExpanded(iPoly, data.X[iCat][jDatum]);
+                        
+                        // Check for cancellation.
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
+                }
+                
+                // Sort by y-value 
+                F1.Util.QuickSortIndex(idxVec[iPoly], yVec[iPoly], left: 0, right: data.NumTotal - 1);
+                
+                // Check for cancellation.
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Quantize and perform monotonic regression.
+                if (targetCat != null)
+                {
+                    // The 2-category "dual" problem.
+                    training.Classifier.Quant[iPoly].Measure(
+                        cancellationToken: cancellationToken,
+                        yIdx: idxVec[iPoly],
+                        yValues: yVec[iPoly],
+                        cat: catVec,
+                        targetCat: (byte)targetCat.Value,
+                        catWeights: dualCatWeights[targetCat.Value],
+                        regressor: regressor);
+                }
+                else if (training.Classifier.NumPoly == 1)
+                {
+                    // A 2-category problem.
+                    
+                    // The 2-category "dual" problem.
+                    training.Classifier.Quant[iPoly].Measure(
+                        cancellationToken: cancellationToken,
+                        yIdx: idxVec[iPoly],
+                        yValues: yVec[iPoly],
+                        cat: catVec,
+                        targetCat: (byte)iPoly,
+                        catWeights: catWeights,
+                        regressor: regressor);
                 }
                 else
                 {
-                    //    Inherit parameters passed in by the classifier.  We assume the classifier was already initialized with parameters.
-                    Util.Copy<float>(this.Classifier.Instance.Params, this.Analysis.ParamInit);
+                    // A M-category problem, where M > 2
+                    training.Classifier.Quant[iPoly].Measure(
+                        cancellationToken: cancellationToken,
+                        yIdx: idxVec[iPoly],
+                        yValues: yVec[iPoly],
+                        cat: catVec,
+                        targetCat: (byte)iPoly,
+                        catWeights: dualCatWeights[iPoly],
+                        regressor: regressor);
                 }
-
-                //-----------------------
-                //    Perform dual optimizations.
-                //-----------------------
-                if (this.Classifier.Instance.NumPoly > 2 && this.options.InitializeParams)
-                {
-                    SolverOptions dualOps = this.options.Clone();
-                    dualOps.WeightingRule = WeightingRule.EqualPriors;
-                    Task<Trainer>[] dualTasks = new Task<Trainer>[this.Classifier.Instance.NumPoly];
-                    for(int iPoly=0; iPoly<this.Classifier.Instance.NumPoly; iPoly++)
-                    {
-                        Trainer t = new Trainer(this.Classifier.Instance.GetDual(iPoly));
-                        dualTasks[iPoly] = t.Train(data.GetDual(iPoly), dualOps);
-                    }
-                    for (int iPoly = 0; iPoly < this.Classifier.Instance.NumPoly; iPoly++)
-                    {
-                        Trainer t = await dualTasks[iPoly];
-                        Array.Copy(t.Classifier.Instance.Params, this.Analysis.ParamInit[iPoly], this.Classifier.Instance.Coeffs.NumCoeffs);
-                    }
-                    Util.Copy<float>(this.Analysis.ParamInit, this.Classifier.Instance.Params);
-                }
-
-                //-----------------------
-                //    Finish constructing the classifier for the first time.
-                //-----------------------
-                D1.MonotonicRegressor regressor = new D1.MonotonicRegressor();
-                for (int iPoly = 0; iPoly < this.Classifier.Instance.NumPoly; iPoly++)
-                    I1.Util.FillSeries(idxVec[iPoly]);
-
-                for (int iPoly = 0; iPoly < this.Classifier.Instance.NumPoly; iPoly++)
-                {
-                    //    Set the quantized probability limits.
-                    double nPerQuantile = (double)Math.Min(data.NumEach[iPoly], data.NumTotal - data.NumEach[iPoly]) / (double)this.Classifier.Instance.Quant[iPoly].NumQuantiles;
-                    this.Classifier.Instance.Quant[iPoly].Pmin = 1.0 / nPerQuantile;
-                    this.Classifier.Instance.Quant[iPoly].Pmax = 1.0-this.Classifier.Instance.Quant[iPoly].Pmin;
-
-                    //    Evaluate the polynomial expression for each datum.
-                    iDatum = 0;
-                    for (int iCat = 0; iCat < data.NumCats; iCat++)
-                    {
-                        int nSamp = data.NumEach[iCat];
-                        for (int iSamp = 0; iSamp < nSamp; iSamp++)
-                        {
-                            //    Evaluate the polynomial expression.
-                            yVec[iPoly][iDatum++] = (float)this.Classifier.Instance.EvalPolyFromExpanded(iPoly, data.X[iCat][iSamp]);
-                        }
-                    }
-
-                    //    Sort the output.  Indexes are preserved to speed up subsequent sorts.
-                    F1.Util.QuickSortIndex(idxVec[iPoly], yVec[iPoly], 0, data.NumTotal-1);
-
-                    //    Quantize the output.
-                    this.Classifier.Instance.Quant[iPoly].Measure(idxVec[iPoly], yVec[iPoly], catVec, (byte)iPoly, this.CatWeights, totalWeight, regressor);
-                }
-                                
-                //-----------------------
-                //    Measure the conditional entropy.
-                //-----------------------
-                float[] y = new float[this.Classifier.Instance.NumPoly];
-                double[] p;
-                double fit = 0.0;
-                byte c;
-                for(iDatum=0; iDatum < data.NumTotal; iDatum++)
-                {
-                    for (int iPoly = 0; iPoly < this.Classifier.Instance.NumPoly; iPoly++)
-                        y[iPoly] = yVec[iPoly][iDatum];
-                    p = this.Classifier.Instance.ClassifyPolynomialOutputs(y);
-                    c = catVec[iDatum];
-                    fit += Math.Log(p[c]) * this.CatWeights[c];
-                }
-                //    Change logarithm base and normalize by total weight.
-                this.Classifier.Fit = -fit / totalWeight / Math.Log((double)data.NumCats);    //    <-- The conditional entropy... we want to minimize it.
-                
-                //-----------------------
-                //    Prepare optimization memory.
-                //-----------------------
-                
-                //    Initialize an orthonormal if the parameter space is small enough.
-                float[][][] ortho = null;
-                int nParams = this.Classifier.Instance.NumPoly * this.Classifier.Instance.Coeffs.NumCoeffs;
-                if (nParams <= 100)
-                    ortho = this.randomDeviates();
-                int iOrtho = 0;
-                int ctOrtho = 0;
-                int ctSteps = 0;
-                
-                //    Every `modOrtho` steps through the orthonormal basis, we try a gradient search.
-                int modOrtho = Math.Min(10, nParams);
-
-                //    For a trip through `modOrtho` bases, changes in entropy are partialled across the parameter space.
-                float[][] dhOrtho = Util.NewArrays<float>(this.Classifier.Instance.NumPoly, this.Classifier.Instance.Coeffs.NumCoeffs);
-
-                //-----------------------
-                //    Optimize.
-                //-----------------------
-                //    The attempted classifier.
-                Classifier cTry = this.Classifier.Instance.Clone();
-                //    The initial step size.
-                float stepSize = this.Options.ParamDiffMax;
-                //    The optimization mode.  We start by iterating through the orthogonal bases.
-                OptimizationMode mode = OptimizationMode.Ortho;
-
-                throw new NotImplementedException("TO DO");
-                
-                bool keepOptimizing = true;
-                while (keepOptimizing)
-                {
-                    if(mode==OptimizationMode.Ortho)
-                    {
-                        if(iOrtho >= modOrtho)
-                        {
-                            iOrtho = 0;
-                        }
-                    }
-                    else if(mode==OptimizationMode.Gradient)
-                    {
-                    }
-                    else
-                        throw new ApplicationException("Unhandled optimization mode.");
-                }
-            }
-            finally
-            {
-                this.trainerIsRunning = false;
             }
         }
         
         /// <summary>
-        /// This performs the quantization procedure for the data provided.
+        /// Performs a line search along the gradient in an attempt to improve classifier performance.
         /// </summary>
-        /// <param name="yVals">The y-value of each datum in the sample.  These values are the output
-        /// of the polynomial function for the target category.</param>
-        /// <param name="yIdx">On output, provides the zero-based index into yVals that rank-orders the yVals.  On output,
-        /// this order is calculated by calling <see cref="Util.QuickSortIndex"/> to sort yVals[yIdx[:]].
-        /// On input, the order from the previous optimization step is passed in.  This means that the list is
-        /// mostly sorted (for small parameter changes), and a mostly sorted list will make the optimization go
-        /// faster than anothr random ordering such as 0...(yVals.Length-1).</param>
-        /// <param name="cats">The category label of each datum.</param>
-        /// <param name="catWeight">The weight assigned to each category.</param>
-        /// <param name="targetCat">The target category for the y-values provided.</param>
-        protected Quantization quantize(float[] yVals, int[] yIdx, byte[] catVec, double[] catWeight, byte targetCat)
+        /// <param name="cancellationToken">If triggered, this thread will throw a <see cref="OperationCanceledException"/>.</param>
+        /// <param name="data">The training data.</param>
+        /// <param name="regressor">The object that performs monotonic regression.</param>
+        /// <param name="catWeights">The category weights.</param>
+        /// <param name="dualCatWeights">The category weights for the "dual" problems (if they exist).</param>
+        /// <param name="catVec">The category label for each training data.  See <see cref="CategorizedData.GetCategoryVector"/>.</param>
+        /// <param name="yVec">On input, the working memory must be initialized with the size:  [numPoly][catVec.Length].
+        /// On output, this contains the y-values (the polynomial output) for each datum.</param>
+        /// <param name="idxVec">On input, the working memory must be initialized with the size:  [numPoly][catVec.Length],
+        /// and each polynomial must be initialized with I.Util.FillSeries, or any randomly shuffled ordering of these
+        /// values.  On output, this contains the sort order (ascending) for the y-values for each polynomial.</param>
+        /// <param name="gradient">The gradient which should decrease entropy (we think).</param>
+        /// <param name="minStepSize">The minimum step size.  See <see cref="TrainingOptions.ParamDiffMin"/> to understand the units
+        /// that this is expressed in.</param>
+        /// <param name="training">The classifier being trained.  If a better fit is found, this will be replaced by a new instance.</param>
+        /// <returns>The change in entropy.  This should always be zero (for no change) or negative (for an improvement).</returns>
+        private static double LineSearch(
+            CancellationToken cancellationToken,
+            [NotNull] CategorizedData data,
+            [NotNull] D1.MonotonicRegressor regressor,
+            [NotNull] CategoryWeights weights,
+            [MaybeNull] CategoryWeights[] dualWeights,
+            [NotNull] byte[] catVec,
+            [NotNull] float[][] yVec,
+            [NotNull] int[][] idxVec,
+            [NotNull] float[][] gradient,
+            [NotNull] float minStepSize,
+            [NotNull] ref TrainedClassifier training)
         {
-            //    Prepare output
-            Quantization output = new Quantization(this.Nquantiles);
-            double wPerBin = this.totalWeight / (double)this.Nquantiles;
-            output.Pmin = 0.5 / wPerBin;
-            output.Pmax = 1.0 - output.Pmin;
-
-            //    IMPORTANT PERFORMANCE NOTE:
-            //    Each time we enter this function, the sort index is preserved from the prior function call.
-            //    This typically leads to faster sort times during optimization because typically the list is sorted
-            //    already (or partially sorted).
-            F1.Util.QuickSortIndex(yIdx, yVals, 0, yVals.Length);
-
-            int iBin = 0;  // The current bin.
-            double ySum = 0.0; // Weighted sum of y-values for the current bin.
-            double correctWeight = 0.0; // Correct weight for the current bin.
-            double errorWeight = 0.0;  // Incorrect weight for the current bin.
-            double binWeight;
+            float step = 1.0f;
+            double entropyInput = training.Entropy.Value;
             
-            double wNextBin = wPerBin; // The amount of cucmulative weight that separates the current bin from the next.
-            double wThis = 0.0; // The current accumulated weight.
-            double dwThis; // The amount of weight added by the current sample.
-            double wLast;    //    The accumulated weight prior to the current sample.
+            TrainedClassifier attempt = training.Clone();
 
-            //    Quantize the  samples.
-            for (int iSamp = 0; iSamp < yVals.Length; iSamp++)
+            while (true)
             {
-                int iSort = yIdx[iSamp];
-                byte idCat = catVec[iSort];
-                wLast = wThis;
-                dwThis = catWeight[idCat];
-                wThis += dwThis;
-                if (wThis > wNextBin || iSamp == yVals.Length-1)
-                {
-                    //---------------------------
-                    //    It is time for a new bin.
-                    //---------------------------
-                    if ( iBin < this.Nquantiles-1 && wNextBin - wLast > wThis - wNextBin)
-                    {
-                        //    Rewind to last sample.
-                        iSort = yIdx[--iSamp];
-                        wThis = wLast;
-                    }
-                    else
-                    {
-                        //    Process this sample  as normal.
-                        ySum += dwThis * yVals[iSort];
-                        if (idCat == targetCat)
-                            correctWeight += dwThis;
-                        else
-                            errorWeight += dwThis;
-                    }
-
-                    //---------------------------
-                    //    Special processing for the last bin.
-                    //---------------------------
-                    if (iBin == this.Nquantiles - 1)
-                    {
-                        //    There should not be any more samples, but we are doing this just to be sure.
-                        while (++iSamp < yVals.Length)
-                        {
-                            iSort = yIdx[iSamp];
-                            idCat = catVec[iSort];
-                            dwThis = catWeight[idCat];
-                            wThis += dwThis;
-                            ySum += dwThis * yVals[iSort];
-                            if (idCat == targetCat)
-                                correctWeight += dwThis;
-                            else
-                                errorWeight += dwThis;
-                        }
-                    }
-
-                    //---------------------------
-                    //    Close out the current bin.
-                    //---------------------------
-                    binWeight = Math.Min(0.00001,correctWeight + errorWeight);
-                    output.P[iBin] = correctWeight / binWeight;
-                    output.Ymid[iBin] = ySum / binWeight;
-                    if (iBin < this.Nquantiles-1)
-                        output.Ysep[iBin] = (yVals[iSort] + yVals[yIdx[iSamp + 1]]) / 2.0;
+                // Check for cancellation.
+                cancellationToken.ThrowIfCancellationRequested();
+                
+                // Modify classifier parameters
+                F.Util.AddScaled(step, gradient, attempt.Classifier.Params);
+                F.Util.Scale(attempt.Classifier.Params, (float)(1.0 / F.Util.NormL2(attempt.Classifier.Params)));
+                
+                // Build the classifier.
+                BuildClassifier(
+                    cancellationToken: cancellationToken,
+                    data: data,
+                    regressor: regressor,
+                    catWeights: weights,
+                    dualCatWeights: dualWeights,
+                    catVec: catVec,
+                    yVec: yVec,
+                    idxVec: idxVec,
+                    training: attempt);
                     
-                    //---------------------------
-                    //    Start a next bin.
-                    //---------------------------
-                    iBin++;
-                    correctWeight = errorWeight = 0.0;
-                    wNextBin += wPerBin;
+                // Measure the fit.
+                (attempt.Accuracy, attempt.Entropy) = MeasureFit(
+                    cancellationToken: cancellationToken,
+                    data: data,
+                    catWeights: weights,
+                    catVec: catVec,
+                    yVec: yVec,
+                    training: attempt);
+                Chk.NotNull(attempt.Entropy, "{0}.{1}", nameof(attempt), nameof(attempt.Entropy));
+
+                if (attempt.Entropy.Value < training.Entropy.Value)
+                {
+                    training = attempt;
+                    training.AddGoodStep();
+                    step *= 1.4142f;  // sqrt(2), Next try a slightly larger step in the same direction
                 }
                 else
                 {
-                    //    Process each sample.
-                    ySum += dwThis * yVals[iSort];
-                    if (idCat == targetCat)
-                        correctWeight += dwThis;
-                    else
-                        errorWeight += dwThis;
+                    training.AddBadStep();
+                    step *= -0.5f;   // Try a smaller step in the opposite direction
+                }
+
+                if (Math.Abs(step) < minStepSize)
+                {
+                    // We break out when the step size gets too small.
+                    break;
                 }
             }
+
+            // The change in entropy should be non-positive.
+            double output = training.Entropy.Value - entropyInput;
+
             return output;
         }
+        
         /// <summary>
-        /// Generates an orthonormal basis of scaled random deviates based on a proper orthonormal matrix and the scale of each parameter.
+        /// Measures the accuracy and entropy of the classifier in training.
         /// </summary>
-        /// <returns>The orthonormal basis of random deviates, with entries multiplied by appropriate scale factors.</returns>
-        protected float[][][] randomDeviates()
+        /// <param name="cancellationToken">If triggered, this thread will throw a <see cref="OperationCanceledException"/>.</param>
+        /// <param name="data">The training data.</param>
+        /// <param name="catWeights">The category weights.</param>
+        /// <param name="catVec">The category label for each training data.  See <see cref="CategorizedData.GetCategoryVector"/>.</param>
+        /// <param name="yVec">On input, the working memory must be initialized with the size:  [numPoly][catVec.Length].
+        /// On output, this contains the y-values (the polynomial output) for each datum.</param>
+        /// <param name="training">The classifier being trained.  If a better fit is found, this will be replaced by a new instance.</param>
+        /// <returns>Accuracy and entropy.</returns>
+        private static (double accuracy, double entropy) MeasureFit(
+            CancellationToken cancellationToken,
+            [NotNull] CategorizedData data,
+            [NotNull] CategoryWeights catWeights,
+            [NotNull] byte[] catVec,
+            [NotNull] float[][] yVec,
+            [NotNull] TrainedClassifier training)
         {
-            int nParams = this.Classifier.Instance.NumPoly * this.Classifier.Instance.Coeffs.NumCoeffs;
-            double[,] ortho = D.Util.RandomRotationMatrix(nParams);
-            float[][][] output = Util.NewArrays<float>(nParams, this.Classifier.Instance.NumPoly, this.Classifier.Instance.Coeffs.NumCoeffs);
-            for (int iBasis = 0; iBasis < nParams; iBasis++)
+            (double accuracy, double entropy) output = (accuracy: 0.0, entropy: 0.0);
+            
+            float[] y = new float[training.Classifier.NumPoly];
+            double[] p;
+            
+            int? targetCat = training.Id?.TargetCat;
+            byte targetCatByte = (byte)(targetCat ?? 0);
+            
+            for (int iDatum = 0; iDatum < data.NumTotal; iDatum++)
             {
-                for (int iPoly = 0; iPoly < this.Classifier.Instance.NumPoly; iPoly++)
+                // Check for cancellation.
+                cancellationToken.ThrowIfCancellationRequested();
+                
+                for (int iPoly = 0; iPoly < y.Length; iPoly++)
+                    y[iPoly] = yVec[iPoly][iDatum];
+                    
+                p = training.Classifier.ClassifyPolynomialOutputs(y);
+                byte cat = catVec[iDatum];
+
+                double weight = catWeights.Weights[cat];
+
+                if (targetCat.HasValue)
                 {
-                    for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.NumCoeffs; iCoeff++)
+                    // 2-category dual problem.
+                    if (cat == targetCatByte)
                     {
-                        int j = iPoly * this.Classifier.Instance.Coeffs.NumCoeffs + iCoeff;
-                        output[iBasis][iPoly][iCoeff] = (float)(ortho[iBasis, j] * this.Analysis.ParamScale[iCoeff]);
+                        output.entropy += Math.Log(p[0]) * weight;
+
+                        if (p[0] > p[1])
+                            output.accuracy += weight;
+                    }
+                    else
+                    {
+                        output.entropy += Math.Log(p[1]) * weight;
+                        
+                        if (p[1] > p[2])
+                            output.accuracy += weight;
+                    }
+                }
+                else
+                {
+                    // Normal classification problem (not dual).
+                    output.entropy += Math.Log(p[cat]) * weight;
+                    int catSelected = D.Util.ArgMax(p);
+                    if (catSelected == cat)
+                    {
+                        output.accuracy += weight;
                     }
                 }
             }
-            return output;
-        }
-        /// <summary>
-        /// Generates a random deviate in the parameter space.
-        /// </summary>
-        /// <returns>The random deviate.</returns>
-        protected float[][] randomDeviate()
-        {
-            int nParams = this.Classifier.Instance.NumPoly * this.Classifier.Instance.Coeffs.NumCoeffs;
-            float[][] output = Util.NewArrays<float>(this.Classifier.Instance.NumPoly, this.Classifier.Instance.Coeffs.NumCoeffs);
-            double sumsq = 0.0;
-            double r;
-            for (int iPoly = 0; iPoly < this.Classifier.Instance.NumPoly; iPoly++)
-            {
-                for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.NumCoeffs; iCoeff++)
-                {
-                    r = D1.GaussianDistribution.InvCdf(Util.Rand.NextDouble());
-                    sumsq += r * r;
-                    output[iPoly][iCoeff] = (float)r;
-                }
-            }
-            float norm = (float)(1.0/sumsq);
-            for (int iPoly = 0; iPoly < this.Classifier.Instance.NumPoly; iPoly++)
-            {
-                for (int iCoeff = 0; iCoeff < this.Classifier.Instance.Coeffs.NumCoeffs; iCoeff++)
-                {
-                    output[iPoly][iCoeff] *= this.Analysis.ParamScale[iCoeff] * norm;
-                }
-            }
+            
+            // Divide by total weight to get the proportion of weight that was correctly classified.
+            output.accuracy /= catWeights.TotalWeight;
+
+            // The value of log(numCats) is used to normalize entropy so that a value of 1 represents "chance"
+            // performance.
+            output.entropy /= -Math.Log(data.NumCats) * catWeights.TotalWeight;
+
             return output;
         }
     }

@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
 
 namespace Morpe.Validation
 {
@@ -25,6 +28,38 @@ namespace Morpe.Validation
                 throw new ArgumentOutOfRangeException(string.Format(message, args));
             }
         }
+        
+        public static void False(bool observed, string message, params object[] args)
+        {
+            if (observed)
+            {
+                throw new InvalidOperationException(string.Format(message, args));
+            }
+        }
+
+        public static void Increasing<T>(IEnumerable<T> listing, string message, params object[] args)
+            where T : System.IComparable<T>
+        {
+            T priorItem = default(T);
+            bool firstTimeThrough = true;
+
+            foreach (T item in listing)
+            {
+                if (firstTimeThrough)
+                {
+                    firstTimeThrough = false;
+                }
+                else
+                {
+                    if (priorItem.CompareTo(item) >= 0)
+                    {
+                        throw new InvalidOperationException(string.Format(message, args));
+                    }
+                }
+
+                priorItem = item;
+            }
+        }
 
         public static void Less<T>(T lhs, T rhs, string message, params object[] args)
             where T : System.IComparable<T>
@@ -41,6 +76,22 @@ namespace Morpe.Validation
             if ( 0 < lhs.CompareTo( rhs ) )
             {
                 throw new ArgumentOutOfRangeException(string.Format(message, args));
+            }
+        }
+        
+        public static void Finite(float observed, string message, params object[] args)
+        {
+            if (!float.IsFinite(observed))
+            {
+                throw new InvalidDataException(string.Format(message, args));
+            }
+        }
+        
+        public static void Finite(double observed, string message, params object[] args)
+        {
+            if (double.IsFinite(observed))
+            {
+                throw new InvalidDataException(string.Format(message, args));
             }
         }
 

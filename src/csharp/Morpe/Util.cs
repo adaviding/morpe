@@ -1,6 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
+using Morpe.Validation;
 
 namespace Morpe
 {
@@ -51,6 +51,35 @@ namespace Morpe
             for (int i = 0; i < src.Length; i++)
             {
                 output[i] = Clone(src[i]);
+            }
+
+            return output;
+        }
+
+        /// <summary>
+        /// Clone the 2D array.
+        /// </summary>
+        /// <param name="src">The input to be clined.</param>
+        /// <typeparam name="T">The type which must be cloneable.</typeparam>
+        /// <returns>The cloned array.</returns>
+        public static T[,] Clone<T>([MaybeNull] T[,] src) where T : ICloneable
+        {
+            T[,] output = null;
+
+            if (src == null)
+                return output;
+
+            int numRows = src.GetLength(0);
+            int numCols = src.GetLength(1);
+
+            output = new T[numRows, numCols];
+
+            for (int i = 0; i < numRows; i++)
+            {
+                for (int j = 0; j < numCols; j++)
+                {
+                    output[i, j] = (T)src[i, j]?.Clone();
+                }
             }
 
             return output;
@@ -159,12 +188,12 @@ namespace Morpe
         /// Sets all elements of "output" equal to a value.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="output">The array whose elements are set.</param>
         /// <param name="value">The value.</param>
-        public static void SetValues<T>(T[][] output, T value)
+        /// <param name="output">The array whose elements are set.</param>
+        public static void SetValues<T>(T value, [NotNull] T[][] output)
         {
-            if (output == null)
-                return;
+            Chk.NotNull(output, nameof(output));
+            
             foreach(T[] row in output)
             {
                 if(row!=null)

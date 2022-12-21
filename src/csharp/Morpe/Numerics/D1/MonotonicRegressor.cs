@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace Morpe.Numerics.D1
 {
@@ -19,6 +21,7 @@ namespace Morpe.Numerics.D1
         /// Performs a monotonic regression of a tabulated function.  This method calculates a monotonic function that is approximately equal
         /// to the tabulated function provided.
         /// </summary>
+        /// <param name="cancellationToken">If triggered, this thread will throw a <see cref="OperationCanceledException"/>.</param>
         /// <param name="output">The monotonic function.  This should be supplied as vector of length identical to input.
         /// When the function has finished executing, the following are guaranteed to be true:
         ///        mean(output) == mean(input)
@@ -27,7 +30,10 @@ namespace Morpe.Numerics.D1
         /// </param>
         /// <param name="input">The tabulated function.</param>
         /// <returns>The number of repetitions through a loop.</returns>
-        public int Run(double[] output, double[] input)
+        public int Run(
+            CancellationToken cancellationToken,
+            [NotNull] double[] output,
+            [NotNull] double[] input)
         {
             if (input == null || output == null || output.Length < input.Length)
                 throw new ArgumentException("The arguments cannot be null, and the length of the output must be at least the length of the input.");
@@ -77,6 +83,9 @@ namespace Morpe.Numerics.D1
                 //    Go through all of dy
                 while (j>0)
                 {
+                    // Check for cancellation.
+                    cancellationToken.ThrowIfCancellationRequested();
+                    
                     halfThis = dy[i]/2.0;
                     if (halfThis<0.0)
                     {

@@ -3,14 +3,19 @@ using System;
 namespace Morpe
 {
     /// <summary>
-    /// Represents Morpe's options, and options that adjust the solver's behavior.
+    /// Training options.
     /// </summary>
-    public class SolverOptions
+    public class TrainingOptions
     {
         /// <summary>
         /// This is called to construct a new instance of the <see cref="Morpe.Options"/> class.
         /// </summary>
-        public SolverOptions() { }
+        public TrainingOptions() { }
+
+        /// <summary>
+        /// If specified, limits the concurrency during training.
+        /// </summary>
+        public int? ConcurrencyLimit;
         
         /// <summary>
         /// Optimization halts when the change in conditional entropy is less than this amount.  This number must be
@@ -53,23 +58,20 @@ namespace Morpe
         /// Must be greater than 0.  Optimization cannot change parameters less than the following magnitude for any [p,i]-th parameter.
         ///        [MAGNITUDE] = ParamDiffMin * Morpe.Trainer.ParamScale[p][i]
         /// </summary>
-        public float ParamDiffMin = 0.02f;
+        public float ParamDiffMin = 0.005f;
         
         /// <summary>
         /// Determines how the optimization routine weights data from each category.
         /// </summary>
-        public WeightingRule WeightingRule = WeightingRule.EqualPriors;
+        public CategoryWeightingRule CategoryWeightingRule = CategoryWeightingRule.EqualPriors;
         
-        public SolverOptions Clone()
+        /// <summary>
+        /// Creates a deep copy of the instance.
+        /// </summary>
+        /// <returns>The deep copy.</returns>
+        public TrainingOptions Clone()
         {
-            SolverOptions output = new SolverOptions();
-            output.EntropyTol = this.EntropyTol;
-            output.InitializeParams = this.InitializeParams;
-            output.NumberOfApproaches = this.NumberOfApproaches;
-            output.ParamShrinkFactor = this.ParamShrinkFactor;
-            output.ParamDiffMax = this.ParamDiffMax;
-            output.ParamDiffMin = this.ParamDiffMin;
-            output.WeightingRule = this.WeightingRule;
+            TrainingOptions output = (TrainingOptions)this.MemberwiseClone();
             return output;
         }
     }

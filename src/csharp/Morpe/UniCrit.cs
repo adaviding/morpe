@@ -60,10 +60,14 @@ namespace Morpe
         /// </summary>
         /// <returns>A deep copy.</returns>
         [return: NotNull]
-        public object Clone()
+        public UniCrit Clone()
         {
             UniCrit output = (UniCrit)this.MemberwiseClone();
             return output;
+        }
+        object ICloneable.Clone()
+        {
+            return this.Clone();
         }
         
         /// <summary>
