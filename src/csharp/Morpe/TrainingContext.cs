@@ -27,7 +27,7 @@ namespace Morpe
         /// <summary>
         /// This will add the trained classifier into <see cref="TrainedClassifiers"/>.  If a classifier with the same
         /// ID already exists, then the one having the best entropy will be saved, and the value of
-        /// <see cref="TrainedClassifier.NumAproaches"/> will be incremented appropriately.
+        /// <see cref="TrainedClassifier.NumApproaches"/> will be incremented appropriately.
         /// </summary>
         /// <param name="trainedClassifier">The classifier being submitted.</param>
         public void Add([NotNull] TrainedClassifier trainedClassifier)
@@ -38,11 +38,11 @@ namespace Morpe
             {
                 if (tcPrior.Entropy <= trainedClassifier.Entropy)
                 {
-                    tcPrior.NumAproaches += trainedClassifier.NumAproaches;
+                    tcPrior.NumApproaches += trainedClassifier.NumApproaches;
                 }
                 else
                 {
-                    trainedClassifier.NumAproaches += tcPrior.NumAproaches;
+                    trainedClassifier.NumApproaches += tcPrior.NumApproaches;
                     this.trainedClassifiers[trainedClassifier.Id] = trainedClassifier;
                 }
             }

@@ -217,7 +217,7 @@ namespace Morpe
 
                 
                 // The same solution would be found every time, so we don't need any more starts.
-                output.NumAproaches = Int32.MaxValue;
+                output.NumApproaches = Int32.MaxValue;
                 output.AddGoodStep();
 
                 // Build the classifier.

@@ -15,12 +15,12 @@ namespace Morpe
         /// <summary>
         /// Computes a mapping from subspace polynomial coefficients up to fullspace polynomial coefficients.
         /// </summary>
-        /// <param name="fullPoly">The fullspace polygon.</param>
-        /// <param name="subPoly">The subspace polygon.</param>
-        /// <param name="subDims">For each spatial dimension of the subspace polygon, this gives the index of the
-        /// corresponding spatial dimension in the fullspace polygon.</param>
-        /// <returns>For each coefficient of the subspace polygon, this gives the corresponding index of the coefficient
-        /// in the fullspace polygon.</returns>
+        /// <param name="fullPoly">The fullspace polynomial.</param>
+        /// <param name="subPoly">The subspace polynomial.</param>
+        /// <param name="subDims">For each spatial dimension of the subspace polynomial, this gives the index of the
+        /// corresponding spatial dimension in the fullspace polynomial.</param>
+        /// <returns>For each coefficient of the subspace polynomial, this gives the corresponding index of the coefficient
+        /// in the fullspace polynomial.</returns>
         [return: NotNull]
         public static int[] SubspaceToFullspaceCoefficientMapping(
             [NotNull] Poly fullPoly,
@@ -28,9 +28,9 @@ namespace Morpe
             [NotNull] int[] subDims)
         {
             Chk.Less(subPoly.Rank, fullPoly.Rank,
-                "The rank of the sub-polygon should be less than this instance.");
+                "The rank of the sub-polynomial should be less than this instance.");
             Chk.Less(subPoly.Rank, fullPoly.Rank,
-                "The rank of the subspace polygon should be less than the fullspace polygon.");
+                "The rank of the subspace polynomial should be less than the fullspace polynomial.");
             Chk.Equal(subDims.Length, subPoly.NumDims,
                 "{0}.{1} != {2}.{3}",
                 nameof(subDims), nameof(subDims.Length),

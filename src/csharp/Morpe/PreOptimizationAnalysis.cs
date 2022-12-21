@@ -76,10 +76,10 @@ namespace Morpe
         /// <summary>
         /// Gets a <see cref="PreOptimizationAnalysis"/> for the given subspace.
         /// </summary>
-        /// <param name="fullPoly">The polygon that describes the full space (the space of this analysis).</param>
-        /// <param name="subPoly">The polygon that describes the subspace.</param>
-        /// <param name="subDims">For each dimension of the subspace polygon, this gives the corresponding index into
-        /// the fullspace polygon.  The values must be increasing.</param>
+        /// <param name="fullPoly">The polynomial that describes the full space (the space of this analysis).</param>
+        /// <param name="subPoly">The polynomial that describes the subspace.</param>
+        /// <param name="subDims">For each dimension of the subspace polynomial, this gives the corresponding index into
+        /// the fullspace polynomial.  The values must be increasing.</param>
         /// <returns>The analysis for the given subspace.</returns>
         [return: NotNull]
         public PreOptimizationAnalysis Subspace(
@@ -88,9 +88,9 @@ namespace Morpe
             [NotNull] int[] subDims)
         {
             Chk.Less(subPoly.Rank, this.Rank,
-                "The rank of the sub-polygon should be less than this instance.");
+                "The rank of the sub-polynomial should be less than this instance.");
             Chk.Less(subPoly.Rank, fullPoly.Rank,
-                "The rank of the subspace polygon should be less than the fullspace polygon.");
+                "The rank of the subspace polynomial should be less than the fullspace polynomial.");
             Chk.Equal(subDims.Length, subPoly.NumDims,
                 "{0}.{1} != {2}.{3}",
                 nameof(subDims), nameof(subDims.Length),

@@ -8,8 +8,8 @@ using Morpe.Validation;
 namespace Morpe
 {
     /// <summary>
-    /// Identifies a classifier based on polynomial rank and dimensionality, so that its performance may be compared
-    /// to other classifiers having slightly different attributes.
+    /// Identifies a classifier based on polynomial rank and dimensionality.  This instance is a dictionary key that allows each classifier to be stored in a
+    /// knowledge base (the <see cref="TrainingContext"/>) and fetched easily.
     ///
     /// This can be used as a dictionary key.
     /// </summary>
@@ -29,7 +29,8 @@ namespace Morpe
         /// If this is a "dual" classifier, then this is the zero-based index of the target category; otherwise this is
         /// null.
         ///
-        /// Dual classifiers are only used when the number of categories is greater than 2.  
+        /// Dual classifiers are only used for the M-category problem where M > 2.  In this case, we build a dual classifier for each of the M categories.
+        /// Each dual classifier segregates the target category from the combination of all other categories.
         /// </summary>
         public int? TargetCat { get; private set; }
 

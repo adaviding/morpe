@@ -44,7 +44,7 @@ namespace Morpe
             int iMaxEntropy = 0;
 
             int numGoodStepsTaken = tc.NumGoodStepsTaken;
-            int numStarts = tc.NumAproaches;
+            int numStarts = tc.NumApproaches;
             int numStepsTaken = tc.NumStepsTaken;
 
             for (int i = 1; i < classifiers.Count; i++)
@@ -58,13 +58,13 @@ namespace Morpe
                 }
                 
                 numGoodStepsTaken += tc.NumGoodStepsTaken;
-                numStarts += tc.NumAproaches;
+                numStarts += tc.NumApproaches;
                 numStepsTaken += tc.NumStepsTaken;
             }
 
             TrainedClassifier output = classifiers[iMaxEntropy];
             output.NumGoodStepsTaken = numGoodStepsTaken;
-            output.NumAproaches = numStarts;
+            output.NumApproaches = numStarts;
             output.NumStepsTaken = numStepsTaken;
 
             return output;
@@ -94,16 +94,16 @@ namespace Morpe
         public ClassifierId Id { get; private set; }
         
         /// <summary>
+        /// This is the number of times that the optimization routine was started.  With each optimization routine,
+        /// a different path is travelled through parameter space to arrive at the solution.
+        /// </summary>
+        public int NumApproaches;
+        
+        /// <summary>
         /// This is the number of good steps that were taken through the parameter space for the optimization routine
         /// that yielded the best fit.  (A good step is one where the fit is improved.)
         /// </summary>
         public int NumGoodStepsTaken;
-        
-        /// <summary>
-        /// This is the number of times that the optimization routine was started.  With each optimization routine,
-        /// a different path is travelled through parameter space to arrive at the solution.
-        /// </summary>
-        public int NumAproaches;
         
         /// <summary>
         /// This is the number of steps taken (good and bad) through the parameter space for the optimization routine
