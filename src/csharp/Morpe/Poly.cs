@@ -177,7 +177,7 @@ namespace Morpe
             for(int iRank=0; iRank < rank; iRank++)
             {
                 numPrior = numCurrent;
-                numCurrent = Poly.NumCoeff(numDims, rank + 1);
+                numCurrent = Poly.NumCoeff(numDims, iRank + 1);
                 this.NumCoeffsForRank[iRank] = numCurrent;
                 this.NumCoeffsForRankHomo[iRank] = numCurrent - numPrior;
             }
@@ -246,22 +246,23 @@ namespace Morpe
         /// <param name="x">INPUT:  The feature vector.</param>
         public void Expand(float[] output, float[] x)
         {
-            if(x.Length < this.NumDims)
-                throw new ArgumentException("The argument x cannot have fewer elements than the number of spatial dimensions.");
+            Chk.Equal(x.Length, this.NumDims, "The length of the feature vector {0} must be equal to the spatial dimensionality {1}.", x.Length, this.NumDims);
+            
             if (output.Length < this.NumCoeffs)
                 throw new ArgumentException ("The argument y cannot have fewer elements than the number of polynomial coefficients.");
-            int iExp, iRank;
+            
             float yy;
-            for(iExp=0; iExp<this.NumCoeffs; iExp++)
+            for(int iCoeff=0; iCoeff<this.NumCoeffs; iCoeff++)
             {
                 yy = 1.0f;
-                for (iRank=0; iRank<this.Rank; iRank++)
+                int[] thisCoeff = this.Coeffs[iCoeff];
+                
+                for (int iTerm=0; iTerm<thisCoeff.Length; iTerm++)
                 {
-                    int ix = this.Coeffs[iExp][iRank];
-                    if(ix<0) break;
+                    int ix = this.Coeffs[iCoeff][iTerm];
                     yy *= x[ix];
                 }
-                output[iExp] = yy;
+                output[iCoeff] = yy;
             }
         }
         

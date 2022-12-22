@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text;
 using Morpe;
+using Morpe.Validation;
 using NUnit.Framework;
 
 namespace Test.Morpe
@@ -48,6 +49,9 @@ namespace Test.Morpe
             // We are going to build a unique string to represent each coefficient, to ensure there are no duplicates.
             StringBuilder uniqueCoeffStringBuilder = new StringBuilder();
             HashSet<string> uniqueCoffStrings = new HashSet<string>();
+            
+            Chk.Increasing(poly.NumCoeffsForRank, "The number of inhomogeneous coefficients per rank should be increasing.");
+            Chk.Increasing(poly.NumCoeffsForRankHomo, "The number of homogeneous coefficients per rank should be increasing.");
 
             for (int i = 0; i < poly.NumCoeffs; i++)
             {
