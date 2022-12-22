@@ -12,6 +12,16 @@ namespace Morpe
     public class Classifier
     {
         /// <summary>
+        /// Allows a multivariate polynomial to be constructed.
+        /// </summary>
+        public Poly Coeffs;
+        
+        /// <summary>
+        /// This is used to condition the data prior to a polynomial expansion.
+        /// </summary>
+        public SpatialConditioner Conditioner;
+        
+        /// <summary>
         /// The number of categories.
         /// </summary>
         public int NumCats;
@@ -32,16 +42,6 @@ namespace Morpe
         /// The number of quantiles used to "bin" probability for each polynomial.
         /// </summary>
         public int NumQuantiles;
-        
-        /// <summary>
-        /// Allows a multivariate polynomial to be constructed.
-        /// </summary>
-        public Poly Coeffs;
-        
-        /// <summary>
-        /// This is used to condition the data prior to a polynomial expansion.
-        /// </summary>
-        public SpatialConditioner Conditioner;
         
         /// <summary>
         /// The model parameters.  Each row specifies coefficients for a polynomial, so this array has <see cref="NumPoly"/>
@@ -297,31 +297,6 @@ namespace Morpe
             for (int iPoly = 0; iPoly < this.NumPoly; iPoly++)
                 output[iPoly] = this.GetDual(iPoly);
             return output;
-        }
-        
-        /// <summary>
-        /// If the given classifier has the same number  of categories, spatial dimensions, and polynomial rank; then this
-        /// classifier will mimic it.
-        /// </summary>
-        /// <param name="toMimic">The classifier to be mimicked.</param>
-        public void Mimic(Classifier toMimic)
-        {
-            if (toMimic.NumCats != this.NumCats)
-                throw new ArgumentException("Cannot mimic another classifier having a different number of categories.");
-            if (toMimic.NumDims != this.NumDims)
-                throw new ArgumentException("Cannot mimic another classifier having a different number of spatial dimensions.");
-            if(toMimic.Coeffs.Rank != this.Coeffs.Rank)
-                throw new ArgumentException("Cannot mimic another classifier having a different polynomial rank.");
-
-            Util.Copy<float>(toMimic.Params, this.Params);
-
-            Quantization q;
-            for (int i = 0; i < this.NumPoly; i++)
-            {
-                q = toMimic.Quant[i];
-                if (q != null)
-                    this.Quant[i] = q.Clone();
-            }
         }
     }
 }

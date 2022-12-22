@@ -127,7 +127,7 @@ namespace Morpe
             
             // This is the range of probabilities that the classifier can produce.
             D1.Range pRange = new D1.Range(
-                min: 1.0 / numPerQuantile,
+                min: 0.5 / numPerQuantile,
                 max: 1.0);
             pRange.Max -= pRange.Min;
 
@@ -352,6 +352,7 @@ namespace Morpe
                         // This is a good step.  Update our value of 'approach'.
                         attempt.AddGoodStep();
                         approach = attempt;
+                        attempt = approach.Clone();
                     }
                     else
                     {
@@ -409,7 +410,9 @@ namespace Morpe
                     }
                 }
 
-                output = TrainedClassifier.SelectLowestEntropyAndMerge(output, approach);
+                output = output.Entropy == null
+                    ? approach
+                    : TrainedClassifier.SelectLowestEntropyAndMerge(output, approach);
             }
 
             return output;
@@ -586,6 +589,7 @@ namespace Morpe
                 {
                     training = attempt;
                     training.AddGoodStep();
+                    attempt = training.Clone();
                     step *= 1.4142f;  // sqrt(2), Next try a slightly larger step in the same direction
                 }
                 else
@@ -603,6 +607,8 @@ namespace Morpe
 
             // The change in entropy should be non-positive.
             double output = training.Entropy.Value - entropyInput;
+            
+            Chk.LessOrEqual(output, 0.0, "The change in entropy was positive.");
 
             return output;
         }

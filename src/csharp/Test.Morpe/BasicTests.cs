@@ -46,6 +46,9 @@ namespace Test.Morpe
                 options: new TrainingOptions(),
                 analysis: analysis,
                 parameterStart: analysis.ParamInit[rank - 1]);
+            
+            TestContext.WriteLine($"{trained.Accuracy:f4} = Training Accuracy");
+            TestContext.WriteLine($"{trained.Entropy:f4} = Training Entropy");
         }
     }
 }
