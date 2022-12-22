@@ -98,17 +98,16 @@ namespace Morpe
         }
         
         /// <summary>
-        /// The inhomogeneous polynomial coefficients.  A 2D array, right-padded with -1 values.  The -1 values signal
-        /// "empty".  Each row is non-decreasing and defines a coefficient.
+        /// The inhomogeneous polynomial coefficients.  Each row is non-decreasing and defines a coefficient.
         ///
         ///    For example...
-        ///        A row of {0, 0, 2, 5, -1, -1, -1} would correspond to the following polynomial term.
+        ///        A row of {0, 0, 2, 5} would correspond to the following polynomial term.
         ///            x[0] * x[0] * x[2] * x[5]
-        ///        A row of {0, 1, 2, -1, -1, -1, -1} would correspond to the following polynomial term.
+        ///        A row of {0, 1, 2} would correspond to the following polynomial term.
         ///            x[0] * x[1] * x[2]
         /// 
         /// The number of rows is <see cref="NumCoeffs"/>.
-        /// The number of columns is <see cref="NumDims"/>.
+        /// The number of values in each row is equal to the rank of that coefficient which is no greater than <see cref="Rank"/>. 
         /// </summary>
         [NotNull]
         public int [][] Coeffs { get; private set; }
@@ -186,7 +185,7 @@ namespace Morpe
             this.Coeffs = new int[this.NumCoeffs][];
 
             //    One coefficient (or row) at a time.
-            List<int> row = new List<int>(Math.Max(numDims, rank));
+            List<int> row = new List<int>(rank);
             row.Add(-1);
             
             //int[] row = new int[rank];
