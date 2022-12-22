@@ -89,7 +89,7 @@ namespace Morpe.Validation
         
         public static void Finite(double observed, string message, params object[] args)
         {
-            if (double.IsFinite(observed))
+            if (!double.IsFinite(observed))
             {
                 throw new InvalidDataException(string.Format(message, args));
             }
