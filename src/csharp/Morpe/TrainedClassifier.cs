@@ -160,8 +160,8 @@ namespace Morpe
         public TrainedClassifier Clone()
         {
             TrainedClassifier output = (TrainedClassifier)this.MemberwiseClone();
-            output.Classifier = this.Classifier.Clone();
-            output.Id = this.Id.Clone();
+            output.Classifier = this.Classifier?.Clone();
+            output.Id = this.Id?.Clone();
 
             return output;
         }

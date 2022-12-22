@@ -109,13 +109,11 @@ namespace Morpe
                 this.Quant[i] = new Quantization(numQuantiles, probabilityRange);
                 
                 Chk.NotNull(parameters[i], "{0}[{1}]", nameof(parameters), nameof(i));
-                Chk.Equal(parameters.Length, this.Coeffs.NumCoeffs, "The parameters for polynomial {0} had an incorrect length {1}, expected {2}.",
+                Chk.Equal(parameters[i].Length, this.Coeffs.NumCoeffs, "The parameters for polynomial {0} had an incorrect length {1}, expected {2}.",
                     i,
                     this.Params[i].Length,
                     this.Coeffs.NumCoeffs);
             }
-
-            
         }
 
         /// <summary>
@@ -146,9 +144,15 @@ namespace Morpe
         /// <param name="x">The multivariate coordiante.</param>
         /// <returns>A vector of length <see cref="NumCats"/> giving the conditional probability of category membership for each category.
         /// Sums to exactly 1.0 (guaranteed).</returns>
-        public double[] Classify(float[] x)
+        public double[] Classify([NotNull] float[] x)
         {
-            return this.ClassifyExpanded(this.Coeffs.Expand(x));
+            Chk.NotNull(this.Conditioner, nameof(this.Conditioner));
+            Chk.NotNull(this.Coeffs, nameof(this.Coeffs));
+
+            float[] conditioned = this.Conditioner.Condition(x);
+            float[] expanded = this.Coeffs.Expand(conditioned);
+            
+            return this.ClassifyExpanded(expanded);
         }
         
         /// <summary>
@@ -245,8 +249,8 @@ namespace Morpe
         public Classifier Clone()
         {
             Classifier output = (Classifier)this.MemberwiseClone();
-            output.Coeffs = this.Coeffs.Clone();
-            output.Conditioner = this.Conditioner.Clone();
+            output.Coeffs = this.Coeffs?.Clone();
+            output.Conditioner = this.Conditioner?.Clone();
             output.Params = Util.Clone(this.Params);
             output.Quant = Util.Clone(this.Quant);
             return output;
