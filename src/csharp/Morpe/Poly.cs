@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Morpe.Validation;
 using I = Morpe.Numerics.I;
 
@@ -59,13 +61,14 @@ namespace Morpe
         
         /// <summary>
         /// Returns the number of inhomogeneous polynomial coefficients for a given dimensionality and rank, including
-        /// all coefficients of lesser rank.
+        /// all coefficients of lesser rank.  However, it does not include the 0-th order term which MoRPE does not use.
         /// </summary>
         /// <param name="numDims"><see cref="NumDims"/>.</param>
         /// <param name="rank"><see cref="Rank"/>.</param>
         public static int NumCoeff(int numDims, int rank)
         {
-            return I.Util.Pascal(numDims, rank);
+            // This is the number of coefficients including the 0-th order term.
+            int output = I.Util.Pascal(numDims, rank);
 
             //                0    1    2    3    4    5    6    7    8    9
             //                            Rank of Tensor
@@ -75,6 +78,11 @@ namespace Morpe
             //    3    of      1    4    10   20    35    56    84    120   165   220
             //    4    Space   1    5    15   35    70    126   210   330   495   715
             //    5            1    6    21   56    126   252   462   924   1716
+            
+            // We subtract 1 to remove the 0-th order term.  (MoRPE does not use this term.)
+            output--;
+
+            return output;
         }
         
         /// <summary>
@@ -175,20 +183,35 @@ namespace Morpe
             }
 
             //    Allocate coefficients.
-            this.Coeffs = Util.NewArrays<int>(this.NumCoeffs,numDims);
+            this.Coeffs = new int[this.NumCoeffs][];
 
             //    One coefficient (or row) at a time.
-            int[] row = new int[numDims];
-            for(int i=0; i<row.Length; i++)
-                row[i] = -1;
+            List<int> row = new List<int>(Math.Max(numDims, rank));
+            row.Add(-1);
+            
+            //int[] row = new int[rank];
+            //for(int i=0; i<row.Length; i++)
+            //    row[i] = -1;
 
             //    For each coefficient.
             for(int iCoeff=0; iCoeff < this.NumCoeffs; iCoeff++)
             {
                 int i, j;
+                
                 // Increment the smallest digit and begin to handle "carry-over" arithmetic.
-                i=-1;
-                while( ++row[++i]==numDims );    // When a digit is maxed, keep incrementing rightward until we're not maxed out.
+                for (i = 0; i < row.Count; i++)
+                {
+                    int val = ++row[i];
+                    if (val < numDims)
+                    {
+                        break;
+                    }
+                    else if (i == row.Count - 1)
+                    {
+                        i++;
+                        row.Add(0);
+                    }
+                }
 
                 // Finish the "carry-over" by ensuring that any leftward maxed digits have been reset.
                 for( j=i-1; j>=0; j-- )
@@ -197,8 +220,7 @@ namespace Morpe
                         row[j]=row[j+1];
                 }
 
-                // Copy last row to output
-                Array.Copy(row, this.Coeffs[iCoeff], row.Length);
+                this.Coeffs[iCoeff] = ((IEnumerable<int>)row).Reverse().ToArray();
             }
         }
 

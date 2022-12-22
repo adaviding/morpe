@@ -12,7 +12,7 @@ namespace Morpe
         /// <summary>
         /// The analysis that was conducted before training for the highest polynomial rank being considered.
         /// </summary>
-        public PreOptimizationAnalysis Analysis;
+        public PreTrainingAnalysis Analysis;
         
         /// <summary>
         /// Gaussian stats for the training data.

@@ -114,7 +114,7 @@ namespace Test.Morpe
                 {
                     double[] z = D1.GaussianDistribution.Rand(this.NumDims);
                     double[] x = D.Util.Add(D.Util.Product(chol, z), this.Means[iCat]);
-                    output.X[iCat][iRow] = F.Util.From(x);
+                    output.X[iCat][iRow] = F.Util.Convert(x);
                 }
             }
 

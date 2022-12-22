@@ -86,59 +86,18 @@ namespace Morpe.Numerics.F
             }
         }
 
-        /// <summary>
-        /// Convert a vector from double to float.
-        /// </summary>
-        /// <param name="input">The input values (double).</param>
-        /// <returns>The output values (float).</returns>
-        [return: NotNull]
-        public static float[] From([NotNull] double[] input)
+        public static float[] Convert(double[] input)
         {
-            float[] output = new float[input.Length];
+            float[] output = null;
 
-            for (int i = 0; i < output.Length; i++)
+            if (input == null)
             {
+                return null;
+            }
+            
+            output = new float[input.Length];
+            for (int i = 0; i < input.Length; i++)
                 output[i] = (float)input[i];
-            }
-
-            return output;
-        }
-
-        /// <summary>
-        /// Allocates a jagged 3D array.
-        /// </summary>
-        /// <param name="depth">Length of first index.</param>
-        /// <param name="height">Length of second index.</param>
-        /// <param name="width">Length of third index.</param>
-        /// <returns>The jagged 3D array.</returns>
-        [return: NotNull]
-        public static float[][][] JaggedCube(int depth, int height, int width)
-        {
-            float[][][] output = new float[depth][][];
-
-            for (int i = 0; i < depth; i++)
-            {
-                output[i] = JaggedSquare(height, width);
-            }
-
-            return output;
-        }
-        
-        /// <summary>
-        /// Allocates a jagged 2D array.
-        /// </summary>
-        /// <param name="height">Length of first index.</param>
-        /// <param name="width">Length of second index.</param>
-        /// <returns>The jagged 2D array.</returns>
-        [return: NotNull]
-        public static float[][] JaggedSquare(int height, int width)
-        {
-            float[][] output = new float[height][];
-
-            for (int i = 0; i < height; i++)
-            {
-                output[i] = new float[width];
-            }
 
             return output;
         }
@@ -195,6 +154,73 @@ namespace Morpe.Numerics.F
             }
             output = Math.Sqrt(output);
             return output;
+        }
+        
+        /// <summary>
+        /// Quicksorts an indexed list by changing the order of the indices and not the list itself.
+        /// </summary>
+        /// <param name="idx">Zero-based indices into the list x.  On output, these indices are reordered so that x[idx] is sorted.</param>
+        /// <param name="x">The list to be sorted.  The elements are not changed on output.</param>
+        /// <param name="left">A zero-based index identifying the lowest element of idx where sorting is conducted.</param>
+        /// <param name="right">A zero-based index identifying the highest element of idx where sorting is conducted.</param>
+        public static void QuickSortIndex(int[] idx, float[] x, int left, int right)
+        {
+            int i = left, j = right;
+            int tmp;
+            double pivot = x[idx[(left + right) / 2]];
+
+            //    Partition
+            while (i <= j)
+            {
+                while (x[idx[i]] < pivot) i++;
+                while (x[idx[j]] > pivot) j--;
+                if (i <= j)
+                {
+                    tmp = idx[i];
+                    idx[i++] = idx[j];
+                    idx[j--] = tmp;
+                }
+            }
+
+            //    Recursion
+            if (left < j)
+                QuickSortIndex(idx, x, left, j);
+            if (i < right)
+                QuickSortIndex(idx, x, i, right);
+        }
+        
+        /// <summary>
+        /// Quicksorts an indexed table by an individual column by changing the order of the indices and not the table itself.
+        /// </summary>
+        /// <param name="idx">Zero-based indices into the table x.  On output, these indices are reordered so that x[idx][iCol] is sorted.</param>
+        /// <param name="x">The table to be sorted.  The elements are not changed on output.</param>
+        /// <param name="iCol">The zero-based column index which determines the rank order of rows within the table.</param>
+        /// <param name="left">A zero-based index identifying the lowest row of idx where sorting is conducted.</param>
+        /// <param name="right">A zero-based index identifying the highest row of idx where sorting is conducted.</param>
+        public static void QuickSortIndex(int[] idx, float[][] x, int iCol, int left, int right)
+        {
+            int i = left, j = right;
+            int tmp;
+            double pivot = x[idx[(left + right) / 2]][iCol];
+
+            //    Partition
+            while (i <= j)
+            {
+                while (x[idx[i]][iCol] < pivot) i++;
+                while (x[idx[j]][iCol] > pivot) j--;
+                if (i <= j)
+                {
+                    tmp = idx[i];
+                    idx[i++] = idx[j];
+                    idx[j--] = tmp;
+                }
+            }
+
+            //    Recursion
+            if (left < j)
+                QuickSortIndex(idx, x, iCol, left, j);
+            if (i < right)
+                QuickSortIndex(idx, x, iCol, i, right);
         }
 
         /// <summary>

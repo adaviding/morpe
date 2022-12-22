@@ -39,7 +39,7 @@ namespace Morpe
         /// </summary>
         /// <param name="numPolys">The number of polynomial functions.</param>
         /// <param name="paramScale">The scale of parameters (coefficients) for each polynomial function.  This is
-        /// typically just <see cref="PreOptimizationAnalysis.ParamScale"/>.</param>
+        /// typically just <see cref="PreTrainingAnalysis.ParamScale"/>.</param>
         public ParameterSpaceWanderer(int numPolys, [NotNull] float[] paramScale)
         {
             Chk.Less(0, numPolys, "The number of polynomials must be positive and non-zero.");
@@ -66,7 +66,7 @@ namespace Morpe
         {
             if (this.basis == null)
             {
-                float[][] output = F.Util.JaggedSquare(this.NumPolys, this.NumParamsPerPoly);
+                float[][] output = Util.NewArrays<float>(this.NumPolys, this.NumParamsPerPoly);
 
                 if (this.NumParams == 1)
                 {
@@ -111,7 +111,7 @@ namespace Morpe
         
         /// <summary>
         /// The scale of parameters (coefficients) for each polynomial function.  This is
-        /// typically just <see cref="PreOptimizationAnalysis.ParamScale"/>.
+        /// typically just <see cref="PreTrainingAnalysis.ParamScale"/>.
         /// </summary>
         private readonly float[] paramScale;
 
@@ -123,7 +123,7 @@ namespace Morpe
         {
             this.idxNextBasis = 0;
 
-            this.basis = F.Util.JaggedCube(this.NumParams, this.NumPolys, this.NumParamsPerPoly);
+            this.basis = Util.NewArrays<float>(this.NumParams, this.NumPolys, this.NumParamsPerPoly);
             double[,] ortho = D.Util.RandomRotationMatrix(this.NumParams);
             
             for (int iBasis = 0; iBasis < this.NumParams; iBasis++)

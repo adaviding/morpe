@@ -26,7 +26,7 @@ namespace Morpe
             [NotNull] byte[] cat,
             [NotNull] float[] x,
             [NotNull] int[] idx,
-            [NotNull] double[] catWeight)
+            [NotNull] CategoryWeights catWeight)
         {
             UniCrit output = new UniCrit();
             output.MaximizeAccuracy(targetCat, cat, x, idx, catWeight);
@@ -83,9 +83,8 @@ namespace Morpe
             [NotNull] byte[] cat,
             [NotNull] float[] x,
             [NotNull] int[] idx,
-            [NotNull] double[] catWeight)
+            [NotNull] CategoryWeights catWeight)
         {
-            //double cwTotal = Static.Sum(catWeight);
             int i, idCat;
             double w;
             int nSamp = cat.Length;
@@ -99,9 +98,9 @@ namespace Morpe
             {
                 idCat = cat[idx[i]];
                 if (idCat == targetCat)
-                    wt1 += catWeight[idCat];
+                    wt1 += catWeight.Weights[idCat];
                 else
-                    wt0 += catWeight[idCat];
+                    wt0 += catWeight.Weights[idCat];
             }
             double wt = wt0 + wt1;    // total weight
 
@@ -129,7 +128,7 @@ namespace Morpe
             for (i = 0; i < nSamp; i++)
             {
                 idCat = cat[idx[i]];
-                w = catWeight[idCat];
+                w = catWeight.Weights[idCat];
                 //    Increment or decrement the correctly classified weight for each decision rule.
                 if (idCat == targetCat)
                 {
@@ -207,7 +206,7 @@ namespace Morpe
                     while (cPos > 0)
                     {
                         idCat = cat[idx[i++]];
-                        w = catWeight[idCat];
+                        w = catWeight.Weights[idCat];
                         if (idCat == targetCat)
                             wPos -= w;
                         else
@@ -266,7 +265,7 @@ namespace Morpe
                     while (cNeg > 0)
                     {
                         idCat = cat[idx[i++]];
-                        w = catWeight[idCat];
+                        w = catWeight.Weights[idCat];
                         if (idCat == targetCat)
                             wNeg += w;
                         else

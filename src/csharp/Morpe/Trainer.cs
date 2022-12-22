@@ -42,7 +42,7 @@ namespace Morpe
             [NotNull] CategorizedData data,
             [NotNull] ClassifierId id,
             [NotNull] TrainingOptions options,
-            [NotNull] PreOptimizationAnalysis analysis,
+            [NotNull] PreTrainingAnalysis analysis,
             [NotNull] List<float[][]> parameterStarts,
             [NotNull] TaskScheduler taskScheduler)
         {
@@ -105,7 +105,7 @@ namespace Morpe
             [NotNull] CategorizedData data,
             [NotNull] ClassifierId id,
             [NotNull] TrainingOptions options,
-            [NotNull] PreOptimizationAnalysis analysis,
+            [NotNull] PreTrainingAnalysis analysis,
             [NotNull] float[][] parameterStart)
         {
             Chk.Equal(id.Dims.Count, data.NumDims, "The number of dimensions is specified inconsistently.");
@@ -186,7 +186,7 @@ namespace Morpe
             byte[] catVec = data.GetCategoryVector();
             
             // [numPoly][data.NumTotal] The output of the polynomial function for each polynomial, and each training datum.
-            float[][] yVec = F.Util.JaggedSquare(numPoly, data.NumTotal);
+            float[][] yVec = Util.NewArrays<float>(numPoly, data.NumTotal);
             
             // [numPoly][data.NumTotal] The index which sorts the value of 'y' for each polynomial.
             int[][] idxVec = I.Util.JaggedSquare(numPoly, data.NumTotal);
@@ -467,7 +467,7 @@ namespace Morpe
                 }
                 
                 // Sort by y-value 
-                F1.Util.QuickSortIndex(idxVec[iPoly], yVec[iPoly], left: 0, right: data.NumTotal - 1);
+                F.Util.QuickSortIndex(idxVec[iPoly], yVec[iPoly], left: 0, right: data.NumTotal - 1);
                 
                 // Check for cancellation.
                 cancellationToken.ThrowIfCancellationRequested();

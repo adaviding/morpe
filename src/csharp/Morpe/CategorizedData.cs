@@ -29,11 +29,11 @@ namespace Morpe
         /// The total number of data points (across all categories).
         /// </summary>
         public readonly int NumTotal;
-        
+
         /// <summary>
         /// Describes the state of this <see cref="CategorizedData"/> instance.
         /// </summary>
-        public CategorizedDataState State { get; protected set; }
+        public CategorizedDataState State;
         
         /// <summary>
         /// The data, indexed as [c][i][j].  Each page c is a category.  Each row i is a unique data point.  Each column
