@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using F = Morpe.Numerics.F;
 using F1 = Morpe.Numerics.F1;
 using I1 = Morpe.Numerics.I1;
 
@@ -40,7 +41,7 @@ namespace Morpe
                 for (int iCol = 0; iCol < data.NumDims; iCol++)
                 {
                     I1.Util.FillSeries(idxVec);
-                    F1.Util.QuickSortIndex(idxVec, data.X[iCat], iCol, 0, data.NumEach[iCat] - 1);
+                    F.Util.QuickSortIndex(idxVec, data.X[iCat], iCol, 0, data.NumEach[iCat] - 1);
 
                     if (isOdd)
                         output.Medians[iCat][iCol] = temp = data.X[iCat][iMed][iCol];

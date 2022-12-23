@@ -19,22 +19,37 @@ namespace Morpe
         /// <summary>
         /// If <see cref="IsConditioned"/>, this was the <see cref="SpatialConditioner"/> that was used.
         /// </summary>
-        public SpatialConditioner Conditioner;
+        [NotNull] 
+        public SpatialConditioner Conditioner { get; private set; }
 
         /// <summary>
         /// If true, the data has been spatially conditioned, false otherwise.
         /// </summary>
-        public bool IsConditioned;
+        public bool IsConditioned { get; private set; }
 
         /// <summary>
         /// If true, the data has gone through a polynomial expansion, false otherwise.
         /// </summary>
-        public bool IsExpanded;
+        public bool IsExpanded { get; private set; }
         
         /// <summary>
         /// If <see cref="IsExpanded"/>, then this was the polynomial used for expansion.
         /// </summary>
-        public Poly Poly;
+        [NotNull] 
+        public Poly Poly { get; private set; }
+
+        /// <summary>
+        /// Construct an instance having the given properties.
+        /// </summary>
+        /// <param name="conditioner"><see cref="Conditioner"/></param>
+        /// <param name="poly"><see cref="Poly"/></param>
+        public CategorizedDataState(
+            [NotNull] SpatialConditioner conditioner,
+            [NotNull] Poly poly)
+        {
+            this.Conditioner = conditioner;
+            this.Poly = poly;
+        }
 
         public CategorizedDataState Clone()
         {

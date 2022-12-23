@@ -2,7 +2,7 @@ using System;
 
 namespace Morpe
 {
-    public enum WeightingRule
+    public enum CategoryWeightingRule
     {
         /// <summary>
         /// We assume each category is equally probable, despite the relative frequencies observed in a sample.

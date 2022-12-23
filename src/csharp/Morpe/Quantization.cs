@@ -11,37 +11,32 @@ namespace Morpe
     /// to generate a quantized probability.  Decision values are calculated for each training datum using one of the polynomial functions.
     /// This instance refers to an entire training sample, but it is only relevant for one of the polynomial functions.
     /// </summary>
-    public class Quantization
+    public class Quantization : ICloneable
     {
         /// <summary>
         /// The number of quantiles.
         /// </summary>
-        public readonly int NumQuantiles;
+        public int NumQuantiles { get; private set; }
         
         /// <summary>
         /// The quantized probability.
         /// </summary>
-        public readonly double[] P;
+        public double[] P  { get; private set; }
+
+        /// <summary>
+        /// The range of P-values that can be delivered by this quantization.
+        /// </summary>
+        public D1.Range ProbabilityRange { get; private set; } 
         
         /// <summary>
-        /// The minimum probability limit.  This is computed as a function of the average weight per bin.
+        /// The average Y-value for data inside each quantile.
         /// </summary>
-        public double Pmin = 0.0;
-        
-        /// <summary>
-        /// The maximum probability limit.  This is computed as a function of the average weight per bin.
-        /// </summary>
-        public double Pmax = 1.0;
-        
-        /// <summary>
-        /// The averate Y-value for data inside each quantile.
-        /// </summary>
-        public readonly double[] Ymid;
+        public double[] Ymid  { get; private set; }
         
         /// <summary>
         /// The boundaries that separate the quantile.  This array has 1 fewer element than <see cref="Ymid"/>.
         /// </summary>
-        public readonly double[] Ysep;
+        public double[] Ysep  { get; private set; }
         
         /// <summary>
         /// Constructs a new container for quantized data.
@@ -52,26 +47,42 @@ namespace Morpe
             this.NumQuantiles = numQuantiles;
             this.Ymid = new double[numQuantiles];
             this.P = new double[numQuantiles];
+            this.ProbabilityRange = new D1.Range(0.0, 1.0);
             this.Ysep = new double[numQuantiles - 1];
         }
         
         /// <summary>
-        /// Copies the quantization data.
+        /// Constructs a new container for quantized data.
         /// </summary>
-        /// <returns></returns>
+        /// <param name="numQuantiles"><see cref="NumQuantiles"/></param>
+        /// <param name="probabilityRange"><see cref="ProbabilityRange"/></param>
+        public Quantization(
+            int numQuantiles,
+            [NotNull] D1.Range probabilityRange)
+        {
+            this.NumQuantiles = numQuantiles;
+            this.Ymid = new double[numQuantiles];
+            this.P = new double[numQuantiles];
+            this.ProbabilityRange = probabilityRange.Clone();
+            this.Ysep = new double[numQuantiles - 1];
+        }
+        
+        /// <summary>
+        /// Creates a deep copy of the quantization data.
+        /// </summary>
+        /// <returns>The deep copy.</returns>
         public Quantization Clone()
         {
-            Quantization output = new Quantization(this.NumQuantiles);
-            output.Pmin = this.Pmin;
-            output.Pmax = this.Pmax;
-            for (int i = 0; i < this.NumQuantiles; i++)
-            {
-                output.P[i] = this.P[i];
-                output.Ymid[i] = this.Ymid[i];
-                if(i < this.NumQuantiles-1)
-                    output.Ysep[i] = this.Ysep[i];
-            }
+            Quantization output = (Quantization)this.MemberwiseClone();
+            output.P = (double[])this.P.Clone();
+            output.Ymid = (double[])this.Ymid.Clone();
+            output.Ysep = (double[])this.Ysep.Clone();
+            
             return output;
+        }
+        object ICloneable.Clone()
+        {
+            return this.Clone();
         }
         
         /// <summary>
@@ -83,20 +94,20 @@ namespace Morpe
         /// <param name="yValues">[iDatum] The y-value calculated for each datum.</param>
         /// <param name="cat">[iDatum] The category label of each datum.</param>
         /// <param name="targetCat">[iDatum] The target category of each datum.</param>
-        /// <param name="catWeight">The weight assigned to each category label.</param>
-        /// <param name="totalWeight">The total weight for the entire sample.</param>
-        /// <param name="regressor">The object used to perform monotonic regression.</param>
+        /// <param name="catWeights">The weight assigned to each category label.</param>
+        /// <param name="regressor">If specified, monotonic regression is performed with this object; otherwise it is
+        /// not performed.</param>
         public void Measure(
+            CancellationToken cancellationToken,
             [NotNull] int[] yIdx,
             [NotNull] float[] yValues,
             [NotNull] byte[] cat,
             byte targetCat,
-            [NotNull] double[] catWeight,
-            double totalWeight,
-            [NotNull] D1.MonotonicRegressor regressor)
+            [NotNull] CategoryWeights catWeights,
+            [MaybeNull] D1.MonotonicRegressor regressor)
         {
             //    Target weight per bin.
-            double wPerBin = totalWeight / (double)(this.NumQuantiles + 0.01);
+            double wPerBin = catWeights.TotalWeight / (double)(this.NumQuantiles + 0.01);
             //    Keep track of the cumulative weight 
             double wNextBin=wPerBin;
             double w=0.0,dwThisBin;
@@ -106,12 +117,17 @@ namespace Morpe
             int iBin = 0;
             for(int iDatum=0; iDatum<yValues.Length; iDatum++)
             {
+                // Check for cancellation.
+                cancellationToken.ThrowIfCancellationRequested();
+                
                 int iiDatum = yIdx[iDatum];
                 byte c = cat[iiDatum];
+                
                 //    Update the weight.
-                dwThis = catWeight[c];
+                dwThis = catWeights.Weights[c];
                 wLastDatum = w;
                 w += dwThis;
+                
                 //    Is the bin finished?
                 if( w>= wNextBin )
                 {
@@ -155,7 +171,7 @@ namespace Morpe
                             iiDatum = yIdx[iDatum];
                             c = cat[iiDatum];
                             //    Update the weight.
-                            dwThis = catWeight[c];
+                            dwThis = catWeights.Weights[c];
                             w += dwThis;
                             //    Accumulate totals.
                             yBin += dwThis * yValues[iiDatum];
@@ -176,11 +192,12 @@ namespace Morpe
             }
             
             //    Perform monotonic regression.
-            regressor.Run(this.P, (double[])this.P.Clone());
+            if (regressor != null)
+                regressor.Run(cancellationToken, this.P, (double[])this.P.Clone());
             
             //    Range limit
             for(iBin=0; iBin<this.P.Length; iBin++)
-                this.P[iBin] = Math.Max(this.Pmin, Math.Min(this.Pmax, this.P[iBin]));
+                this.P[iBin] = this.ProbabilityRange.Clamp(this.P[iBin]);
         }
     }
 }

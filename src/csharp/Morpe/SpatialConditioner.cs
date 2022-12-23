@@ -64,13 +64,39 @@ namespace Morpe
             {
                 for (int iRow = 0; iRow < data.NumEach[iCat]; iRow++)
                 {
-                    float[] xOld = data.X[iCat][iRow];
-                    float[] xNew = new float[data.NumDims];
-                    for (int iDim = 0; iDim < data.NumDims; iDim++)
-                    {
-                        xNew[iDim] = (xOld[iDim] - this.Origin[iDim]) / this.Spread[iDim];
-                    }
+                    this.ConditionInPlace(data.X[iCat][iRow]);
                 }
+            }
+        }
+        
+        /// <summary>
+        /// Conditions a coordinate by subtracting the <see cref="Origin"/> and then dividing by the <see cref="Spread"/> for each dimension.
+        /// In other words, this outputs something like a z-score for each dimension.
+        /// </summary>
+        /// <param name="x">The input coordinate.</param>
+        /// <returns></returns>
+        public float[] Condition([NotNull] IReadOnlyList<float> x)
+        {
+            float[] output = new float[x.Count];
+
+            for (int i = 0; i < output.Length; i++)
+            {
+                output[i] = (x[i] - this.Origin[i]) / this.Spread[i];
+            }
+
+            return output;
+        }
+        
+        /// <summary>
+        /// Conditions a coordinate by subtracting the <see cref="Origin"/> and then dividing by the <see cref="Spread"/> for each dimension.
+        /// In other words, this outputs something like a z-score for each dimension.
+        /// </summary>
+        /// <param name="x">On input, the unconditioned coordinate.  On output, the conditioned coordinate.</param>
+        public void ConditionInPlace([NotNull] float[] x)
+        {
+            for (int i = 0; i < x.Length; i++)
+            {
+                x[i] = (x[i] - this.Origin[i]) / this.Spread[i];
             }
         }
         
@@ -84,13 +110,39 @@ namespace Morpe
             {
                 for (int iRow = 0; iRow < data.NumEach[iCat]; iRow++)
                 {
-                    float[] xOld = data.X[iCat][iRow];
-                    float[] xNew = new float[data.NumDims];
-                    for (int iDim = 0; iDim < data.NumDims; iDim++)
-                    {
-                        xNew[iDim] = xOld[iDim] * this.Spread[iDim] + this.Origin[iDim];
-                    }
+                    this.DeconditionInPlace(data.X[iCat][iRow]);
                 }
+            }
+        }
+        
+        /// <summary>
+        /// Deconditions a coordinate by multiplying by the <see cref="Spread"/> and then adds the <see cref="Origin"/> for each dimension.
+        /// In other words, this takes something like a z-score (for each dimension) and outputs the original coordinate.
+        /// </summary>
+        /// <param name="x">The conditioned input coordinate.</param>
+        /// <returns>The deconditioned (original) coordinate.</returns>
+        public float[] Decondition([NotNull] IReadOnlyList<float> x)
+        {
+            float[] output = new float[x.Count];
+
+            for (int i = 0; i < output.Length; i++)
+            {
+                output[i] = x[i] * this.Spread[i] + this.Origin[i];
+            }
+
+            return output;
+        }
+        
+        /// <summary>
+        /// Deconditions a coordinate by multiplying by the <see cref="Spread"/> and then adds the <see cref="Origin"/> for each dimension.
+        /// In other words, this takes something like a z-score (for each dimension) and outputs the original coordinate.
+        /// </summary>
+        /// <param name="x">On input, the conditioned coordinate.  On output, the deconditioned (original) coordinate.</param>
+        public void DeconditionInPlace([NotNull] float[] x)
+        {
+            for (int i = 0; i < x.Length; i++)
+            {
+                x[i] = x[i] * this.Spread[i] + this.Origin[i];
             }
         }
 

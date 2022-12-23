@@ -1,6 +1,6 @@
 using System;
 using System.Linq;
-
+using Morpe.Validation;
 using F1 = Morpe.Numerics.F1;
 
 namespace Morpe
@@ -29,11 +29,11 @@ namespace Morpe
         /// The total number of data points (across all categories).
         /// </summary>
         public readonly int NumTotal;
-        
+
         /// <summary>
         /// Describes the state of this <see cref="CategorizedData"/> instance.
         /// </summary>
-        public CategorizedDataState State { get; protected set; }
+        public CategorizedDataState State;
         
         /// <summary>
         /// The data, indexed as [c][i][j].  Each page c is a category.  Each row i is a unique data point.  Each column
@@ -137,6 +137,29 @@ namespace Morpe
                         this.X[iCat][iSamp] = poly.Expand(x);
                 }
             }
+        }
+
+        /// <summary>
+        /// Get a single vector that contains the category label for all rows of data.  The rows are iterated in
+        /// ascending order of category.
+        /// </summary>
+        /// <returns>The category label for each datum.  The length of this vector is <see cref="NumTotal"/>.
+        /// This vector is non-decreasing.</returns>
+        public byte[] GetCategoryVector()
+        {
+            Chk.LessOrEqual(this.NumCats, byte.MaxValue, "There are too many categories for this operation.");
+
+            byte[] output = new byte[this.NumTotal];
+
+            int ct = 0;
+            for (int iCat = 0; iCat < this.NumCats; iCat++)
+            {
+                int numRows = this.NumEach[iCat];
+                for (int iRow = 0; iRow < numRows; iRow++)
+                    output[ct++] = (byte)iCat;
+            }
+
+            return output;
         }
         
         /// <summary>

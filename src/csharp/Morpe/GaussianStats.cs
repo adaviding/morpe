@@ -70,7 +70,7 @@ namespace Morpe
         /// </summary>
         /// <param name="targetCat">The target category.</param>
         /// <param name="weights">The relative weighting for each category.  If null, each category is given equal
-        /// weighting (like with <see cref="WeightingRule.EqualPriors"/>).</param>
+        /// weighting (like with <see cref="CategoryWeightingRule.EqualPriors"/>).</param>
         /// <returns>The <see cref="GaussianStats"/> for the "dual" view of the target category.</returns>
         public GaussianStats ForDual(int targetCat, [MaybeNull] double[] weights)
         {

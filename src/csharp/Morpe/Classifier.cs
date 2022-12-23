@@ -1,6 +1,7 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
-
+using Morpe.Validation;
 using D1 = Morpe.Numerics.D1;
 
 namespace Morpe
@@ -10,6 +11,16 @@ namespace Morpe
     /// </summary>
     public class Classifier
     {
+        /// <summary>
+        /// Allows a multivariate polynomial to be constructed.
+        /// </summary>
+        public Poly Coeffs;
+        
+        /// <summary>
+        /// This is used to condition the data prior to a polynomial expansion.
+        /// </summary>
+        public SpatialConditioner Conditioner;
+        
         /// <summary>
         /// The number of categories.
         /// </summary>
@@ -31,16 +42,6 @@ namespace Morpe
         /// The number of quantiles used to "bin" probability for each polynomial.
         /// </summary>
         public int NumQuantiles;
-        
-        /// <summary>
-        /// Allows a multivariate polynomial to be constructed.
-        /// </summary>
-        public Poly Coeffs;
-        
-        /// <summary>
-        /// This is used to condition the data prior to a polynomial expansion.
-        /// </summary>
-        public SpatialConditioner Conditioner;
         
         /// <summary>
         /// The model parameters.  Each row specifies coefficients for a polynomial, so this array has <see cref="NumPoly"/>
@@ -79,33 +80,48 @@ namespace Morpe
                 this.Quant[i] = new Quantization(numQuantiles);
             }
         }
-        
-        protected Classifier(Classifier toCopy)
+
+        public Classifier(
+            int numCats,
+            int numDims,
+            int rank,
+            int numQuantiles,
+            [NotNull] D1.Range probabilityRange,
+            [NotNull] float[][] parameters)
         {
-            this.NumCats = toCopy.NumCats;
-            this.NumDims = toCopy.NumDims;
-            this.Coeffs = new Poly(this.NumDims, toCopy.Coeffs.Rank);
+            this.NumCats = numCats;
+            this.NumDims = numDims;
+            this.Coeffs = new Poly (numDims, rank);
+            this.NumQuantiles = numQuantiles;
             this.NumPoly = 1;
             if (this.NumCats > 2)
                 this.NumPoly = this.NumCats;
-            this.Params = Util.Copy<float>(toCopy.Params);
-
+            this.Params = parameters;
             this.Quant = new Quantization[this.NumPoly];
-            Quantization q;
+            
+            Chk.NotNull(parameters, nameof(parameters));
+            Chk.Equal(parameters.Length, this.NumPoly, "The number of parameter arrays {0} must be equal to the number of polynomials {1}.",
+                parameters.Length,
+                this.NumPoly);
+            
             for (int i = 0; i < this.NumPoly; i++)
             {
-                q = toCopy.Quant[i];
-                if(q!=null)
-                    this.Quant[i] = q.Clone();
+                this.Quant[i] = new Quantization(numQuantiles, probabilityRange);
+                
+                Chk.NotNull(parameters[i], "{0}[{1}]", nameof(parameters), nameof(i));
+                Chk.Equal(parameters[i].Length, this.Coeffs.NumCoeffs, "The parameters for polynomial {0} had an incorrect length {1}, expected {2}.",
+                    i,
+                    this.Params[i].Length,
+                    this.Coeffs.NumCoeffs);
             }
         }
-        
+
         /// <summary>
         /// This is used by <see cref="GetDual"/> and <see cref="GetDuals"/>.
         /// </summary>
         /// <param name="toCopy">A classifier having more than 1 polynomial.</param>
         /// <param name="targetPoly">The target polynomial function.</param>
-        protected Classifier(Classifier toCopy, int targetPoly)
+        private Classifier(Classifier toCopy, int targetPoly)
         {
             this.NumCats = 2;
             this.NumDims = toCopy.NumDims;
@@ -123,39 +139,20 @@ namespace Morpe
         }
         
         /// <summary>
-        /// If the given classifier has the same number  of categories, spatial dimensions, and polynomial rank; then this
-        /// classifier will mimic it.
-        /// </summary>
-        /// <param name="toMimic">The classifier to be mimicked.</param>
-        public void Mimic(Classifier toMimic)
-        {
-            if (toMimic.NumCats != this.NumCats)
-                throw new ArgumentException("Cannot mimic another classifier having a different number of categories.");
-            if (toMimic.NumDims != this.NumDims)
-                throw new ArgumentException("Cannot mimic another classifier having a different number of spatial dimensions.");
-            if(toMimic.Coeffs.Rank != this.Coeffs.Rank)
-                throw new ArgumentException("Cannot mimic another classifier having a different polynomial rank.");
-
-            Util.Copy<float>(toMimic.Params, this.Params);
-
-            Quantization q;
-            for (int i = 0; i < this.NumPoly; i++)
-            {
-                q = toMimic.Quant[i];
-                if (q != null)
-                    this.Quant[i] = q.Clone();
-            }
-        }
-        
-        /// <summary>
         /// Classifies the multivariate coordinate.
         /// </summary>
         /// <param name="x">The multivariate coordiante.</param>
         /// <returns>A vector of length <see cref="NumCats"/> giving the conditional probability of category membership for each category.
         /// Sums to exactly 1.0 (guaranteed).</returns>
-        public double[] Classify(float[] x)
+        public double[] Classify([NotNull] float[] x)
         {
-            return this.ClassifyExpanded(this.Coeffs.Expand(x));
+            Chk.NotNull(this.Conditioner, nameof(this.Conditioner));
+            Chk.NotNull(this.Coeffs, nameof(this.Coeffs));
+
+            float[] conditioned = this.Conditioner.Condition(x);
+            float[] expanded = this.Coeffs.Expand(conditioned);
+            
+            return this.ClassifyExpanded(expanded);
         }
         
         /// <summary>
@@ -245,12 +242,18 @@ namespace Morpe
         }
         
         /// <summary>
-        /// Creates a copy of the classifier which utilizes totally different memory resources.
+        /// Creates a deep copy.
         /// </summary>
-        /// <returns>A copy of the classifier, with identical parameter values, but utilizing completely different memory resources.</returns>
+        /// <returns>The deep copy.</returns>
+        [return: NotNull]
         public Classifier Clone()
         {
-            return new Classifier(this);
+            Classifier output = (Classifier)this.MemberwiseClone();
+            output.Coeffs = this.Coeffs?.Clone();
+            output.Conditioner = this.Conditioner?.Clone();
+            output.Params = Util.Clone(this.Params);
+            output.Quant = Util.Clone(this.Quant);
+            return output;
         }
         
         /// <summary>
@@ -294,19 +297,6 @@ namespace Morpe
             for (int iPoly = 0; iPoly < this.NumPoly; iPoly++)
                 output[iPoly] = this.GetDual(iPoly);
             return output;
-        }
-        
-        /// <summary>
-        /// Trains the classifier by optimizing parameters based on the training data using default solver options.
-        /// </summary>
-        /// <param name="ops">Sets the <see cref="Trainer.Options"/> of the trainer.  If a value is not provided, default options are used.</param>
-        public Task<Trainer> Train(CategorizedData data, SolverOptions ops)
-        {
-            if (data == null)
-                throw new ArgumentException("Argument cannot be null.");
-
-            Trainer trainer = new Trainer(this);
-            return trainer.Train(data, ops);
         }
     }
 }
