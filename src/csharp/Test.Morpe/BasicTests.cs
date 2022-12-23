@@ -17,7 +17,7 @@ namespace Test.Morpe
             int numDims = 2;
             int rank = 2;
             MockGaussianDataSet dataSet = new MockGaussianDataSet(numCats: numEach.Length, numDims: numDims);
-            CategorizedData data = dataSet.CreateRandomSample(numEach: numEach);
+            CategorizedData data = dataSet.Data;
             
             // Condition and expand the data.
             data.State = new CategorizedDataState(
@@ -49,6 +49,11 @@ namespace Test.Morpe
             
             TestContext.WriteLine($"{trained.Accuracy:f4} = Training Accuracy");
             TestContext.WriteLine($"{trained.Entropy:f4} = Training Entropy");
+        }
+
+        private static void RunTest(MockGaussianDataSet mockData, int rank, int numQuantiles)
+        {
+            
         }
     }
 }
