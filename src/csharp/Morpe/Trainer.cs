@@ -410,6 +410,9 @@ namespace Morpe
                     }
                 }
 
+                // This was just a single approach.
+                approach.NumApproaches = 1;
+
                 output = output.Entropy == null
                     ? approach
                     : TrainedClassifier.SelectLowestEntropyAndMerge(output, approach);

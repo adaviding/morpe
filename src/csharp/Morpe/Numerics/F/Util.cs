@@ -86,16 +86,15 @@ namespace Morpe.Numerics.F
             }
         }
 
-        public static float[] Convert(double[] input)
+        [return: MaybeNull]
+        public static float[] Convert([MaybeNull] double[] input)
         {
-            float[] output = null;
-
             if (input == null)
             {
                 return null;
             }
             
-            output = new float[input.Length];
+            float[] output = new float[input.Length];
             for (int i = 0; i < input.Length; i++)
                 output[i] = (float)input[i];
 

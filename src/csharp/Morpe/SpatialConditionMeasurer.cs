@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
+using Morpe.Validation;
 using F = Morpe.Numerics.F;
 using F1 = Morpe.Numerics.F1;
 using I1 = Morpe.Numerics.I1;
@@ -27,6 +27,8 @@ namespace Morpe
         public static SpatialConditionMeasurer Measure(
             [NotNull] CategorizedData data)
         {
+            Chk.NotNull(data, nameof(data));
+            
             SpatialConditionMeasurer output = new SpatialConditionMeasurer(data.NumCats, data.NumDims);
 
             float temp;
