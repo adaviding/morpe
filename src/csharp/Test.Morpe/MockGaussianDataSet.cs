@@ -15,6 +15,54 @@ namespace Test.Morpe
     public class MockGaussianDataSet
     {
         /// <summary>
+        /// Creates some spherical distributions having pairwise d' ("d prime" from signal detection theory) as specified. 
+        /// </summary>
+        /// <param name="numEach">The number of samples in each category.</param>
+        /// <param name="numDims">The number of spatial dimensions.  This must be at least numEach.Length because of the pairwise d' constraint.</param>
+        /// <param name="dPrime">The value of pairwise d' ("d prime" from signal detection theory).  So any two categories (selected at random) will be separated
+        /// by this much d'.</param>
+        /// <returns>The mock Gaussian data set.</returns>
+        public static MockGaussianDataSet CreateSpherical(
+            [NotNull] int[] numEach,
+            int numDims,
+            double dPrime)
+        {
+            Chk.NotNull(numEach, nameof(numEach));
+            Chk.Less(1, numEach.Length, "There must be at least 2 categories.");
+            Chk.Less(0, numDims, "There must be at least 1 spatial dimension.");
+            Chk.LessOrEqual(0.0, dPrime, "{0} should be non-negative.", nameof(dPrime));
+            Chk.LessOrEqual(numEach.Length, numDims, "The number of spatial dimensions cannot be less than the number of categories because of the pairwise d' constraint.");
+
+            MockGaussianDataSet output = new MockGaussianDataSet();
+            output.NumCats = numEach.Length;
+            output.NumDims = numDims;
+            
+            output.Means = new double[output.NumCats][];
+            output.Covs = new double[output.NumCats][,];
+            output.InvChols = new double[output.NumCats][,];
+
+            double[,] randRot = D.Util.RandomRotationMatrix(numDims);
+
+            double meanScalar = dPrime / Math.Sqrt(numDims);
+            
+            for (int c = 0; c < output.NumCats; c++)
+            {
+                output.Means[c] = new double[numDims];
+
+                for (int i = 0; i < output.NumDims; i++)
+                {
+                    output.Means[c][i] = randRot[c, i] * meanScalar;
+                    output.Covs[c] = D.Util.IdentityMatrix(numDims);
+                    output.InvChols[c] = D.Util.IdentityMatrix(numDims);
+                }
+            }
+
+            output.Data = output.CreateRandomSample(numEach);
+
+            return output;
+        }
+        
+        /// <summary>
         /// The number of categories.
         /// </summary>
         public int NumCats;
@@ -50,45 +98,12 @@ namespace Test.Morpe
         public double[][,] InvChols;
 
         /// <summary>
-        /// The categorized data.
+        /// The categorized data.  This is typically set as the output of <see cref="CreateRandomSample"/>.
         /// </summary>
         public CategorizedData Data;
 
-        private MockGaussianDataSet()
+        public MockGaussianDataSet()
         {
-        }
-
-        /// <summary>
-        /// Creates a mock Gaussian data set with the given number of categories and dimensions.  The category means
-        /// are the columns of a random rotation matrix.  The covariance matrices are identity.
-        /// </summary>
-        /// <param name="numCats"><see cref="NumCats"/></param>
-        /// <param name="numDims"><see cref="NumDims"/></param>
-        public MockGaussianDataSet(int numCats, int numDims)
-        {
-            this.NumCats = numCats;
-            this.NumDims = numDims;
-            
-            Chk.Less(1, numCats, "There must be at least 2 categories.");
-            Chk.Less(0, numCats, "There must be at least 1 spatial dimension.");
-
-            this.Means = new double[numCats][];
-            this.Covs = new double[numCats][,];
-            this.InvChols = new double[numCats][,];
-
-            double[,] randRot = D.Util.RandomRotationMatrix(Math.Max(numCats, numDims));
-            
-            for (int c = 0; c < this.NumCats; c++)
-            {
-                this.Means[c] = new double[numDims];
-
-                for (int i = 0; i < this.NumDims; i++)
-                {
-                    this.Means[c][i] = randRot[c, i];
-                    this.Covs[c] = D.Util.IdentityMatrix(numDims);
-                    this.InvChols[c] = D.Util.IdentityMatrix(numDims);
-                }
-            }
         }
 
         /// <summary>
@@ -117,6 +132,89 @@ namespace Test.Morpe
                     output.X[iCat][iRow] = F.Util.Convert(x);
                 }
             }
+
+            return output;
+        }
+
+        /// <summary>
+        /// Measures the optimal fit for the <see cref="Data"/>.  This can be measured because we know the properties of the Gaussian populations.
+        /// </summary>
+        /// <param name="weights">The category weights.</param>
+        /// <returns>The optimal fit (accuracy and entropy).</returns>
+        public (double accuracy, double entropy) MeasureOptimalFit([NotNull] CategoryWeights weights)
+        {
+            return this.MeasureOptimalFit(weights, this.Data);
+        }
+
+        /// <summary>
+        /// Measures the optimal fit for the given data.  This can be measured because we know the properties of the Gaussian populations.
+        /// </summary>
+        /// <param name="weights">The category weights.</param>
+        /// <param name="data">The given data.</param>
+        /// <returns>The optimal fit (accuracy and entropy).</returns>
+        public (double accuracy, double entropy) MeasureOptimalFit(
+            [NotNull] CategoryWeights weights,
+            [NotNull] CategorizedData data)
+        {
+            Chk.NotNull(weights, nameof(weights));
+            Chk.NotNull(data, nameof(data));
+
+            (double accuracy, double entropy) output = (0.0, 0.0);
+
+            double totalWeight = 0.0;
+            
+            for (int iCat = 0; iCat < data.NumCats; iCat++)
+            {
+                double weight = weights.Weights[iCat]; 
+                    
+                for (int iDatum = 0; iDatum < data.X[iCat].Length; iDatum++)
+                {
+                    int catMax = -1;
+                    double pdMax = double.MinValue;
+                    double pdCat = 0.0;
+                    double pdNotCat = 0.0;
+                    double pd;
+
+                    float[] x = data.X[iCat][iDatum];
+                    
+                    for (int jCat = 0; jCat < data.NumCats; jCat++)
+                    {
+                        // Measure the probability density for the current category.
+                        pd = D.GaussianDistribution.Density(
+                            x: D.Util.Convert(x),
+                            mean: this.Means[jCat],
+                            invChol: this.InvChols[jCat]);
+
+                        if (pd > pdMax)
+                        {
+                            pdMax = pd;
+                            catMax = jCat;
+                        }
+
+                        if (jCat == iCat)
+                        {
+                            pdCat += pd;
+                        }
+                        else
+                        {
+                            pdNotCat += pd;
+                        }
+                    }
+
+                    if (iCat == catMax)
+                    {
+                        output.accuracy += weight;
+                    }
+
+                    pd = pdCat / (pdCat + pdNotCat);
+                    output.entropy += -weight * Math.Log(pd, data.NumCats);
+                    
+                    totalWeight += weight;
+                }
+            }
+
+            output.accuracy /= totalWeight;
+            output.entropy /= totalWeight;
 
             return output;
         }

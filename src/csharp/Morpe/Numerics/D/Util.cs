@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
@@ -129,6 +130,20 @@ namespace Morpe.Numerics.D
                 }
             }
             
+            return output;
+        }
+
+        public static double[] Convert([MaybeNull] float[] x)
+        {
+            if (x == null)
+                return null;
+            
+            double[] output = new double[x.Length];
+            for (int i = 0; i < output.Length; i++)
+            {
+                output[i] = x[i];
+            }
+
             return output;
         }
 
