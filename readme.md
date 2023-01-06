@@ -9,13 +9,13 @@ Ing, AD (2014) MoRPE:  A Probabilistic Classifier.  *GitHub*.  doi:10.5281/zenod
 ## Project Status
 This project moves very slowly because I have very little time to work on it.
 
-### Projects that will be supported moving forward.
+### Projects that will be supported moving forward
 Here are a couple implementations which are roughly equivalent in terms of the outer API and inner numerical properties, but computational performance may differ. 
 
-* The [C# codebase](src/csharp/readme.md) is halfway complete.
-* The [C++ codebase](src/cpp/readme.md) will be started after the C# codebase is completed.
+* The [C# codebase](src/csharp/readme.md) is usable.
+* The [C++ codebase](src/cpp/readme.md) will be started next.
 
-### Old projects, no support is planned
+### The original project is unsupported
 This was the code I had when MoRPE was first invented.
 
 * The [Matlab codebase](src/matlab/readme.md) is here for posterity, but it is filthy and you should try to avoid it.
