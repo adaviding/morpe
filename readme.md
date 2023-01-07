@@ -13,7 +13,7 @@ This project moves very slowly because I have very little time to work on it.
 Here are a couple implementations which are roughly equivalent in terms of the outer API and inner numerical properties, but computational performance may differ. 
 
 * The [C# codebase](src/csharp/readme.md) is usable.
-* The [C++ codebase](src/cpp/readme.md) will be started next.
+* The [C++ codebase](src/cpp/readme.md) is just getting started.
 
 ### The original project is unsupported
 This was the code I had when MoRPE was first invented.
