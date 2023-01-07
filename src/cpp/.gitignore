@@ -1,0 +1,8 @@
+# Build output folders
+cmake-build-*/
+
+# Files dropped by `conan install ...` commands
+conanbuildinfo.txt
+conaninfo.txt
+graph_info.json
+

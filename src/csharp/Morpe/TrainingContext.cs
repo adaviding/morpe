@@ -68,7 +68,6 @@ namespace Morpe
             [NotNull] TrainingOptions options)
         {
         }
-
         
         /// <summary>
         /// The classifiers that have been trained up to this point.
