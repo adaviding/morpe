@@ -14,23 +14,23 @@ namespace Morpe
         /// <summary>
         /// Allows a multivariate polynomial to be constructed.
         /// </summary>
-        public Poly Coeffs;
-        
+        public Polynomial Coeffs;
+
         /// <summary>
         /// This is used to condition the data prior to a polynomial expansion.
         /// </summary>
         public SpatialConditioner Conditioner;
-        
+
         /// <summary>
         /// The number of categories.
         /// </summary>
         public int NumCats;
-        
+
         /// <summary>
         /// The spatial dimensionality.
         /// </summary>
         public int NumDims;
-        
+
         /// <summary>
         /// The number of polynomials.
         ///
@@ -42,19 +42,19 @@ namespace Morpe
         /// The number of quantiles used to "bin" probability for each polynomial.
         /// </summary>
         public int NumQuantiles;
-        
+
         /// <summary>
         /// The model parameters.  Each row specifies coefficients for a polynomial, so this array has <see cref="NumPoly"/>
-        /// rows and <see cref="Coeffs"/>.Ncoeff columns (See <see cref="Poly.NumCoeff"/>).
+        /// rows and <see cref="Coeffs"/>.Ncoeff columns (See <see cref="Polynomial.NumCoeff"/>).
         /// </summary>
         public float[][] Params;
-        
+
         /// <summary>
         /// Holds data related to the quantization of the decision variable (for each polynomial) throughout the training sample.
         /// Creates a monotonic mapping from the decision variable to a probability of category membership;
         /// </summary>
         public Quantization[] Quant;
-        
+
         /// <summary>
         /// Initializes an untrained instance of the <see cref="Classifier"/> class.  The classifier should be trained
         /// (see <see cref="Train"/>) before it can be used for classification.
@@ -67,7 +67,7 @@ namespace Morpe
         {
             this.NumCats = numCats;
             this.NumDims = numDims;
-            this.Coeffs = new Poly (numDims, rank);
+            this.Coeffs = new Polynomial (numDims, rank);
             this.NumQuantiles = numQuantiles;
             this.NumPoly = 1;
             if (this.NumCats > 2)
@@ -91,23 +91,23 @@ namespace Morpe
         {
             this.NumCats = numCats;
             this.NumDims = numDims;
-            this.Coeffs = new Poly (numDims, rank);
+            this.Coeffs = new Polynomial (numDims, rank);
             this.NumQuantiles = numQuantiles;
             this.NumPoly = 1;
             if (this.NumCats > 2)
                 this.NumPoly = this.NumCats;
             this.Params = parameters;
             this.Quant = new Quantization[this.NumPoly];
-            
+
             Chk.NotNull(parameters, nameof(parameters));
             Chk.Equal(parameters.Length, this.NumPoly, "The number of parameter arrays {0} must be equal to the number of polynomials {1}.",
                 parameters.Length,
                 this.NumPoly);
-            
+
             for (int i = 0; i < this.NumPoly; i++)
             {
                 this.Quant[i] = new Quantization(numQuantiles, probabilityRange);
-                
+
                 Chk.NotNull(parameters[i], "{0}[{1}]", nameof(parameters), nameof(i));
                 Chk.Equal(parameters[i].Length, this.Coeffs.NumCoeffs, "The parameters for polynomial {0} had an incorrect length {1}, expected {2}.",
                     i,
@@ -125,7 +125,7 @@ namespace Morpe
         {
             this.NumCats = 2;
             this.NumDims = toCopy.NumDims;
-            this.Coeffs = new Poly(this.NumDims, toCopy.Coeffs.Rank);
+            this.Coeffs = new Polynomial(this.NumDims, toCopy.Coeffs.Rank);
             this.NumPoly = 1;
 
             this.Params = Util.NewArrays<float>(this.NumPoly, this.Coeffs.NumCoeffs);
@@ -137,7 +137,7 @@ namespace Morpe
             if (q != null)
                 this.Quant[0] = q.Clone();
         }
-        
+
         /// <summary>
         /// Classifies the multivariate coordinate.
         /// </summary>
@@ -151,14 +151,14 @@ namespace Morpe
 
             float[] conditioned = this.Conditioner.Condition(x);
             float[] expanded = this.Coeffs.Expand(conditioned);
-            
+
             return this.ClassifyExpanded(expanded);
         }
-        
+
         /// <summary>
         /// Classifies the expanded multivariate coordinate.
         /// </summary>
-        /// <param name="x">The expanded multivariate coordinate.  For more information, see <see cref="Poly.Expand"/>.</param>
+        /// <param name="x">The expanded multivariate coordinate.  For more information, see <see cref="Polynomial.Expand"/>.</param>
         /// <returns>A vector of length <see cref="NumCats"/> giving the conditional probability of category membership for each category.
         /// Sums to exactly 1.0 (guaranteed).</returns>
         public double[] ClassifyExpanded(float[] x)
@@ -198,7 +198,7 @@ namespace Morpe
                 return output;
             }
         }
-        
+
         /// <summary>
         /// Classifies the polynomial outputs.
         /// </summary>
@@ -240,7 +240,7 @@ namespace Morpe
                 return output;
             }
         }
-        
+
         /// <summary>
         /// Creates a deep copy.
         /// </summary>
@@ -255,12 +255,12 @@ namespace Morpe
             output.Quant = Util.Clone(this.Quant);
             return output;
         }
-        
+
         /// <summary>
         /// Evaluates the specified polynomial function for an expanded multivariate coordinate.
         /// </summary>
         /// <param name="iPoly">The polynomial to evaluate.  This is a zero-based index into a row of <see cref="Params"/>.</param>
-        /// <param name="x">The expanded multivariate coordinate.  For more information, see <see cref="Poly.Expand"/>.</param>
+        /// <param name="x">The expanded multivariate coordinate.  For more information, see <see cref="Polynomial.Expand"/>.</param>
         /// <returns>The value of the polynomial expression.</returns>
         public double EvalPolyFromExpanded(int iPoly, float[] x)
         {
@@ -270,7 +270,7 @@ namespace Morpe
                 output += poly[i] * x[i];
             return output;
         }
-        
+
         /// <summary>
         /// If this classifier has more than 1 polynomial, this function returns the "dual" classifier consisting of 1 polynomial.
         /// It is named "dual" because it deals only with 2 categories.
@@ -284,7 +284,7 @@ namespace Morpe
                 return null;
             return new Classifier(this, targetPoly);
         }
-        
+
         /// <summary>
         /// If this classifier has more than 1 polynomial, this function returns all "dual" classifiers.  See <see cref="GetDual"/> for more information.
         /// </summary>

@@ -36,25 +36,25 @@ namespace Morpe
         /// If <see cref="IsExpanded"/>, then this was the polynomial used for expansion.
         /// </summary>
         [NotNull] 
-        public Poly Poly { get; private set; }
+        public Polynomial Polynomial { get; private set; }
 
         /// <summary>
         /// Construct an instance having the given properties.
         /// </summary>
         /// <param name="conditioner"><see cref="Conditioner"/></param>
-        /// <param name="poly"><see cref="Poly"/></param>
+        /// <param name="polynomial"><see cref="Polynomial"/></param>
         public CategorizedDataState(
             [NotNull] SpatialConditioner conditioner,
-            [NotNull] Poly poly)
+            [NotNull] Polynomial polynomial)
         {
             this.Conditioner = conditioner;
-            this.Poly = poly;
+            this.Polynomial = polynomial;
         }
 
         public CategorizedDataState Clone()
         {
             CategorizedDataState output = this.MemberwiseClone() as CategorizedDataState;
-            output.Poly = output.Poly.Clone();
+            output.Polynomial = output.Polynomial.Clone();
             output.Conditioner = output.Conditioner.Clone();
 
             return output;
@@ -82,7 +82,7 @@ namespace Morpe
         /// <param name="data">The data on which spatial conditioning is to be performed.</param>
         public void Contract([NotNull] CategorizedData data)
         {
-            Chk.NotNull(this.Poly, nameof(this.Poly));
+            Chk.NotNull(this.Polynomial, nameof(this.Polynomial));
             Chk.True(this.IsExpanded, "The data is not expanded by polynomial.");
             
             data.Contract();
@@ -111,10 +111,10 @@ namespace Morpe
         /// <param name="data">The data on which spatial conditioning is to be performed.</param>
         public void Expand([NotNull] CategorizedData data)
         {
-            Chk.NotNull(this.Poly, nameof(this.Poly));
+            Chk.NotNull(this.Polynomial, nameof(this.Polynomial));
             Chk.True(!this.IsExpanded, "The polynomial expansion has already occurred.");
             
-            data.Expand(this.Poly);
+            data.Expand(this.Polynomial);
             this.IsExpanded = true;
         }
     }

@@ -49,13 +49,13 @@ namespace Morpe
                 ? 1
                 : data.NumCats;
 
-            output.Rank = data.State.Poly.Rank;
-            output.ParamScale = new float[data.State.Poly.NumCoeffs];
-            output.Crits = new UniCrit[numPolys, data.State.Poly.NumCoeffs];
+            output.Rank = data.State.Polynomial.Rank;
+            output.ParamScale = new float[data.State.Polynomial.NumCoeffs];
+            output.Crits = new UniCrit[numPolys, data.State.Polynomial.NumCoeffs];
 
             output.ParamInit = new float[output.Rank][][];
             for (int i = 0; i < output.Rank; i++)
-                output.ParamInit[i] = Util.NewArrays<float>(numPolys, data.State.Poly.NumCoeffsForRank[i]);
+                output.ParamInit[i] = Util.NewArrays<float>(numPolys, data.State.Polynomial.NumCoeffsForRank[i]);
             
             int i20 = (int)(0.5 + 0.20 * (double)(data.NumTotal - 1));
             int i80 = (int)(0.5 + 0.80 * (double)(data.NumTotal - 1));
@@ -65,7 +65,7 @@ namespace Morpe
             byte[] catVec = data.GetCategoryVector();  // The category label for each datum.
 
             // For each polynomial coefficient (i.e. each column of the expanded data)
-            for (int iCoeff = 0; iCoeff < data.State.Poly.NumCoeffs; iCoeff++)
+            for (int iCoeff = 0; iCoeff < data.State.Polynomial.NumCoeffs; iCoeff++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 
@@ -92,7 +92,7 @@ namespace Morpe
                 output.ParamScaleNorm = new float[output.Rank];
                 for (int iRank = 0; iRank < output.Rank; iRank++)
                 {
-                    output.ParamScaleNorm[iRank] = (float)Norm(output.ParamScale, data.State.Poly.NumCoeffsForRank[iRank]);
+                    output.ParamScaleNorm[iRank] = (float)Norm(output.ParamScale, data.State.Polynomial.NumCoeffsForRank[iRank]);
                 }
                 
                 // Get a univariate classification criteria.
@@ -115,7 +115,7 @@ namespace Morpe
             double invDataLength = 1.0 / data.NumTotal;
             
             // For each polynomial coefficient (i.e. each column of the expanded data)
-            for (int iCoeff = 0; iCoeff < data.State.Poly.NumCoeffs; iCoeff++)
+            for (int iCoeff = 0; iCoeff < data.State.Polynomial.NumCoeffs; iCoeff++)
             {
                 for (int iPoly = 0; iPoly < numPolys; iPoly++)
                 {
@@ -131,7 +131,7 @@ namespace Morpe
 
                     // Fill all the ranks
                     int iRank = output.Rank;
-                    while (--iRank >= 0 && iCoeff < data.State.Poly.NumCoeffsForRank[iRank])
+                    while (--iRank >= 0 && iCoeff < data.State.Polynomial.NumCoeffsForRank[iRank])
                     {
                         output.ParamInit[iRank][iPoly][iCoeff] = (float)x;
                     }
@@ -210,48 +210,48 @@ namespace Morpe
         /// <summary>
         /// Gets a <see cref="PreTrainingAnalysis"/> for the given subspace.
         /// </summary>
-        /// <param name="fullPoly">The polynomial that describes the full space (the space of this analysis).</param>
-        /// <param name="subPoly">The polynomial that describes the subspace.</param>
+        /// <param name="fullPolynomial">The polynomial that describes the full space (the space of this analysis).</param>
+        /// <param name="subPolynomial">The polynomial that describes the subspace.</param>
         /// <param name="subDims">For each dimension of the subspace polynomial, this gives the corresponding index into
         /// the fullspace polynomial.  The values must be increasing.</param>
         /// <returns>The analysis for the given subspace.</returns>
         [return: NotNull]
         public PreTrainingAnalysis Subspace(
-            [NotNull] Poly fullPoly,
-            [NotNull] Poly subPoly,
+            [NotNull] Polynomial fullPolynomial,
+            [NotNull] Polynomial subPolynomial,
             [NotNull] int[] subDims)
         {
-            Chk.Less(subPoly.Rank, this.Rank,
+            Chk.Less(subPolynomial.Rank, this.Rank,
                 "The rank of the sub-polynomial should be less than this instance.");
-            Chk.Less(subPoly.Rank, fullPoly.Rank,
+            Chk.Less(subPolynomial.Rank, fullPolynomial.Rank,
                 "The rank of the subspace polynomial should be less than the fullspace polynomial.");
-            Chk.Equal(subDims.Length, subPoly.NumDims,
+            Chk.Equal(subDims.Length, subPolynomial.NumDims,
                 "{0}.{1} != {2}.{3}",
                 nameof(subDims), nameof(subDims.Length),
-                nameof(subPoly), nameof(subPoly.NumDims));
+                nameof(subPolynomial), nameof(subPolynomial.NumDims));
             Chk.Increasing(subDims, "The vector of subspace dimension indices must be increasing.");
             Chk.LessOrEqual(0, subDims.First(), "The vector of subspace dimension indices is out of range (too low).");
-            Chk.Less(subDims.Last(), fullPoly.NumDims, "The vector of subspace dimension indices is out of range (too high).");
+            Chk.Less(subDims.Last(), fullPolynomial.NumDims, "The vector of subspace dimension indices is out of range (too high).");
 
             PreTrainingAnalysis output = this.Clone();
 
             int numPoly = this.Crits.Length;
-            output.Rank = subPoly.Rank;
-            output.Crits = new UniCrit[numPoly, subPoly.NumCoeffs];
-            output.ParamScale = new float[subPoly.NumCoeffs];
-            output.ParamScaleNorm = new float[subPoly.Rank];
+            output.Rank = subPolynomial.Rank;
+            output.Crits = new UniCrit[numPoly, subPolynomial.NumCoeffs];
+            output.ParamScale = new float[subPolynomial.NumCoeffs];
+            output.ParamScaleNorm = new float[subPolynomial.Rank];
 
             // Allocate space for initial parameter values.
-            output.ParamInit = Util.NewArrays<float[]>(subPoly.Rank, numPoly);
-            for (int iRank = 0; iRank < subPoly.Rank; iRank++)
+            output.ParamInit = Util.NewArrays<float[]>(subPolynomial.Rank, numPoly);
+            for (int iRank = 0; iRank < subPolynomial.Rank; iRank++)
                 for (int iPoly = 0; iPoly < numPoly; iPoly++)
-                    output.ParamInit[iRank][iPoly] = new float[subPoly.NumCoeffsForRank[iRank]];
+                    output.ParamInit[iRank][iPoly] = new float[subPolynomial.NumCoeffsForRank[iRank]];
 
             // Map subspace coefficients to fullspace coefficients.
-            int[] mapSubToFull = Poly.SubspaceToFullspaceCoefficientMapping(fullPoly, subPoly, subDims);
+            int[] mapSubToFull = Polynomial.SubspaceToFullspaceCoefficientMapping(fullPolynomial, subPolynomial, subDims);
 
             // For each subspace coefficient
-            for (int iCoeff = 0; iCoeff < subPoly.NumCoeffs; iCoeff++)
+            for (int iCoeff = 0; iCoeff < subPolynomial.NumCoeffs; iCoeff++)
             {
                 int jCoeff = mapSubToFull[iCoeff];
                 
@@ -260,7 +260,7 @@ namespace Morpe
                 for (int iPoly = 0; iPoly < numPoly; iPoly++)
                     output.Crits[iPoly, iCoeff] = this.Crits[iPoly, jCoeff];
                 
-                for(int iRank=subPoly.Coeffs[iCoeff].Length-1; iRank<output.Rank; iRank++)
+                for(int iRank=subPolynomial.Coeffs[iCoeff].Length-1; iRank<output.Rank; iRank++)
                     for (int iPoly = 0; iPoly < numPoly; iPoly++)
                         output.ParamInit[iRank][iPoly][iCoeff] = this.ParamInit[iRank][iPoly][jCoeff];
             }
