@@ -122,8 +122,8 @@ namespace Morpe
         /// <summary>
         /// Computes the polynomial expansion in place.  You can undo the expansion by calling <see cref="Contract"/>
         /// </summary>
-        /// <param name="poly">The defiinition of the polynomial expansion.</param>
-        public void Expand(Poly poly)
+        /// <param name="polynomial">The defiinition of the polynomial expansion.</param>
+        public void Expand(Polynomial polynomial)
         {
             for (int iCat = 0; iCat < this.NumCats; iCat++)
             {
@@ -132,9 +132,9 @@ namespace Morpe
                 {
                     float[] x = this.X[iCat][iSamp];
                     if (x.Length > this.NumDims)
-                        this.X[iCat][iSamp] = poly.Expand(F1.Util.GetSubarray(x, 0, this.NumDims - 1));
+                        this.X[iCat][iSamp] = polynomial.Expand(F1.Util.GetSubarray(x, 0, this.NumDims - 1));
                     else
-                        this.X[iCat][iSamp] = poly.Expand(x);
+                        this.X[iCat][iSamp] = polynomial.Expand(x);
                 }
             }
         }

@@ -193,7 +193,7 @@ namespace Morpe
         /// for '-y' (negative "y") because it is larger for category 0 and smaller for category 1.
         /// </summary>
         /// <returns>The parameters of a quadratic function which are optimal for a Gaussian assumption.  This is
-        /// indexed in a way that matches the definition of <see cref="Poly.Coeffs"/>.
+        /// indexed in a way that matches the definition of <see cref="Polynomial.Coeffs"/>.
         /// </returns>
         /// <remarks>This is typically used to calculate starting parameters for a MoRPE classifier.</remarks>
         [return: NotNull]

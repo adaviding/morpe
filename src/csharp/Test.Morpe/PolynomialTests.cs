@@ -19,8 +19,8 @@ namespace Test.Morpe
         [TestCase(4, 2, 14, 10)]
         public void TestNumCoeffs(int numDims, int rank, int numCoeffs, int numCoeffsHomo)
         {
-            Assert.AreEqual(numCoeffs,     Poly.NumCoeff(numDims, rank),     "Number of inhomogeneous coefficients is wrong.");
-            Assert.AreEqual(numCoeffsHomo, Poly.NumCoeffHomo(numDims, rank), "Number of homogeneous coefficients is wrong.");
+            Assert.AreEqual(numCoeffs,     Polynomial.NumCoeff(numDims, rank),     "Number of inhomogeneous coefficients is wrong.");
+            Assert.AreEqual(numCoeffsHomo, Polynomial.NumCoeffHomo(numDims, rank), "Number of homogeneous coefficients is wrong.");
         }
 
         [TestCase(1,1)]
@@ -38,36 +38,36 @@ namespace Test.Morpe
         [TestCase(4,4)]
         public void TestPolyCoeffs(int numDims, int rank)
         {
-            Poly poly = new Poly(numDims, rank);
-            
-            Assert.AreEqual(numDims, poly.NumDims, nameof(poly.NumDims));
-            Assert.AreEqual(rank, poly.Rank, nameof(poly.Rank));
+            Polynomial polynomial = new Polynomial(numDims, rank);
 
-            int numCoeff = Poly.NumCoeff(numDims, rank);
-            Assert.AreEqual(numCoeff, poly.Coeffs.Length, "Wrong number of coefficients.");
+            Assert.AreEqual(numDims, polynomial.NumDims, nameof(polynomial.NumDims));
+            Assert.AreEqual(rank, polynomial.Rank, nameof(polynomial.Rank));
+
+            int numCoeff = Polynomial.NumCoeff(numDims, rank);
+            Assert.AreEqual(numCoeff, polynomial.Coeffs.Length, "Wrong number of coefficients.");
 
             // We are going to build a unique string to represent each coefficient, to ensure there are no duplicates.
             StringBuilder uniqueCoeffStringBuilder = new StringBuilder();
             HashSet<string> uniqueCoffStrings = new HashSet<string>();
-            
-            Chk.Increasing(poly.NumCoeffsForRank, "The number of inhomogeneous coefficients per rank should be increasing.");
-            Chk.Increasing(poly.NumCoeffsForRankHomo, "The number of homogeneous coefficients per rank should be increasing.");
 
-            for (int i = 0; i < poly.NumCoeffs; i++)
+            Chk.Increasing(polynomial.NumCoeffsForRank, "The number of inhomogeneous coefficients per rank should be increasing.");
+            Chk.Increasing(polynomial.NumCoeffsForRankHomo, "The number of homogeneous coefficients per rank should be increasing.");
+
+            for (int i = 0; i < polynomial.NumCoeffs; i++)
             {
-                int len = poly.Coeffs[i].Length;
+                int len = polynomial.Coeffs[i].Length;
                 Assert.LessOrEqual(len, rank, "The length of the coefficient vector cannot be greater than the polynomial rank.");
-                
+
                 // The prior value of 'current' (defined below).
                 int prior = -1; // initialize with a dummy value.
-                
+
                 for (int j = 0; j < len; j++)
                 {
-                    int current = poly.Coeffs[i][j];
+                    int current = polynomial.Coeffs[i][j];
 
                     Assert.GreaterOrEqual(current, 0, "Poly coeffs must be non-negative.");
                     Assert.Less(current, numDims, "Poly coeffs must be less than the number of spatial dimensions.");
-                    
+
                     if (i > 0)
                     {
                         Assert.LessOrEqual(prior, current, "Poly coeffs should be non-decreasing.");
@@ -86,7 +86,7 @@ namespace Test.Morpe
                     "The coefficient {0} has at least 1 duplicate.  Coefficients must be unique.", uniqueCoeffString);
                 uniqueCoffStrings.Add(uniqueCoeffString);
             }
-            
+
         }
     }
 }

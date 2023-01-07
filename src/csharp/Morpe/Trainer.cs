@@ -25,7 +25,7 @@ namespace Morpe
         /// The default number of quantiles for the trained MoRPE classifier.
         /// </summary>
         public static readonly int DefaultNumQuantiles = 32;
-        
+
         /// <summary>
         /// Trains a single classifier without the <see cref="TrainingContext"/>.
         /// </summary>
@@ -47,7 +47,7 @@ namespace Morpe
             [NotNull] TaskScheduler taskScheduler)
         {
             TaskFactory<TrainedClassifier> taskFactory = new TaskFactory<TrainedClassifier>(taskScheduler);
-            
+
             // Start a task for each parameter start.
             Task<TrainedClassifier>[] tasks = new Task<TrainedClassifier>[parameterStarts.Count];
 
@@ -64,7 +64,7 @@ namespace Morpe
             if (tasks.Any(a => !a.IsCompletedSuccessfully))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 // fixme throw appropriate exception
 
                 Task<TrainedClassifier>[] canceled = tasks.Where(a => a.IsCanceled).ToArray();
@@ -85,7 +85,7 @@ namespace Morpe
             TrainedClassifier[] trained = tasks
                 .Select(a => a.Result)
                 .ToArray();
-            
+
             TrainedClassifier output = TrainedClassifier.SelectLowestEntropyAndMerge(trained);
             return output;
         }
@@ -117,14 +117,14 @@ namespace Morpe
 
             // This will regress the quantization noise onto an arbitrary monotonic function.
             D1.MonotonicRegressor regressor = new D1.MonotonicRegressor();
-            
+
             // Here we use simple logic to pick the number of quantiles.  In the future we may want to use logic
             // which is based on the sample size.
             int numQuantiles = DefaultNumQuantiles;
-            
+
             // The approximate number of samples per quantile.
             double numPerQuantile = (double)data.NumTotal / numQuantiles;
-            
+
             // This is the range of probabilities that the classifier can produce.
             D1.Range pRange = new D1.Range(
                 min: 0.5 / numPerQuantile,
@@ -142,7 +142,7 @@ namespace Morpe
                 // 2.  The combined data from all other categories.
                 numCats = 2;
             }
-            
+
             // Figure out how many polynomial coefficients we are training.
             int numPoly = numCats;
             if (numCats == 2)
@@ -152,28 +152,28 @@ namespace Morpe
             }
 
             // The polynomial coefficients are defined like this (for each polynomial).
-            Poly poly = new Poly(
+            Polynomial polynomial = new Polynomial(
                 numDims: data.NumDims,
                 rank: id.Rank);
-            
+
             // This is how many free parameters we are training.
-            int numParams = numPoly * poly.NumCoeffs;
-            
+            int numParams = numPoly * polynomial.NumCoeffs;
+
             // This is the scale of each parameter (for each polynomial).  It is possible that we have scales
             // for higher rank polynomial coefficients, so truncate.
             float[] paramScale = analysis.ParamScale;
-            if (paramScale.Length > poly.NumCoeffs)
+            if (paramScale.Length > polynomial.NumCoeffs)
             {
                 // This creates a new array which is a truncated version of the original.
-                Array.Resize(ref paramScale, poly.NumCoeffs);
+                Array.Resize(ref paramScale, polynomial.NumCoeffs);
             }
-            
+
             // Figure out how to weight each training datum.
             CategoryWeights weights = CategoryWeights.Measure(
                 numEach: data.NumEach,
                 rule: options.CategoryWeightingRule,
                 targetCategory: id.TargetCat);
-            
+
             CategoryWeights[] dualWeights = null;
             if (numCats > 2)
             {
@@ -181,13 +181,13 @@ namespace Morpe
                     numEach: data.NumEach,
                     rule: options.CategoryWeightingRule);
             }
-            
+
             // [data.NumTotal] The category label of each training datum.
             byte[] catVec = data.GetCategoryVector();
-            
+
             // [numPoly][data.NumTotal] The output of the polynomial function for each polynomial, and each training datum.
             float[][] yVec = Util.NewArrays<float>(numPoly, data.NumTotal);
-            
+
             // [numPoly][data.NumTotal] The index which sorts the value of 'y' for each polynomial.
             int[][] idxVec = I.Util.JaggedSquare(numPoly, data.NumTotal);
             for (int i = 0; i < numPoly; i++)
@@ -197,14 +197,14 @@ namespace Morpe
             {
                 // The solution to the 1-parameter problem is already known.  We can just set the parameters without
                 // searching and then build the classifier.
-                
+
                 // The polynomial function that points to the target cat.
                 int iTargetPoly = id.TargetCat ?? 0;
-                
+
                 // Allocate a classifier and fill it in manually.
                 output.Classifier = new Classifier(
                     numCats: numCats,
-                    numDims: poly.NumDims,
+                    numDims: polynomial.NumDims,
                     rank: id.Rank,
                     numQuantiles: numQuantiles,
                     probabilityRange: pRange.Clone(),
@@ -215,7 +215,7 @@ namespace Morpe
                                 : -1f
                         }});
 
-                
+
                 // The same solution would be found every time, so we don't need any more starts.
                 output.NumApproaches = Int32.MaxValue;
                 output.AddGoodStep();
@@ -252,7 +252,7 @@ namespace Morpe
             {
                 // Check for cancellation.
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 // Initialize the classifier.
                 TrainedClassifier approach = new TrainedClassifier(
                     id: id,
@@ -263,7 +263,7 @@ namespace Morpe
                         numQuantiles,
                         probabilityRange: pRange.Clone(),
                         parameters: Util.Clone(parameterStart)));
-                
+
                 // Build the classifier.
                 BuildClassifier(
                     cancellationToken: cancellationToken,
@@ -275,7 +275,7 @@ namespace Morpe
                     yVec: yVec,
                     idxVec: idxVec,
                     training: approach);
-                
+
                 // Measure the fit.
                 (approach.Accuracy, approach.Entropy) = MeasureFit(
                     cancellationToken: cancellationToken,
@@ -285,21 +285,21 @@ namespace Morpe
                     yVec: yVec,
                     training: approach);
                 Chk.NotNull(approach.Entropy, "{0}.{1}", nameof(approach), nameof(approach.Entropy));
-                
+
                 approach.AddGoodStep();
-                
+
                 // ------------------------------
                 // Inner optimization method
                 // ------------------------------
                 TrainedClassifier attempt = approach.Clone();
-                
+
                 int ctStreakOfWanderingSteps = 0;
                 int maxStreakOfWanderingSteps = Math.Min(12, numParams);
                 double entropyWhenStartedWandering = approach.Entropy.Value;
-                
+
                 int ctStreakOfInsufficientLineSearches = 0;
                 int maxStreakOfInsufficientLineSearches = 2;
-                
+
                 float[][] del;
                 float[][] gradient = Util.NewArrays<float>(numPoly, paramScale.Length);
 
@@ -308,19 +308,19 @@ namespace Morpe
                 {
                     // Wander
                     del = wanderer.NextBasis(stepSize);
-                    
+
                     // This is set to true when we need to shrink the step size on the next round.
                     bool shrinkStep = false;
-                    
+
                     // Start with 'approach' which represents our best fit so far (for this approach)
                     Util.Copy(approach.Classifier.Params, attempt.Classifier.Params);
-                    
+
                     // Wander by adding 'del'
                     F.Util.Add(del, attempt.Classifier.Params);
-                    
-                    // Norm the parameters. 
+
+                    // Norm the parameters.
                     F.Util.Scale(attempt.Classifier.Params, (float)(1.0/F.Util.NormL2(attempt.Classifier.Params)));
-                    
+
                     // Build the classifier.
                     BuildClassifier(
                         cancellationToken: cancellationToken,
@@ -332,7 +332,7 @@ namespace Morpe
                         yVec: yVec,
                         idxVec: idxVec,
                         training: attempt);
-                    
+
                     // Measure the fit.
                     (attempt.Accuracy, attempt.Entropy) = MeasureFit(
                         cancellationToken: cancellationToken,
@@ -359,7 +359,7 @@ namespace Morpe
                         // This is a bad step.
                         approach.AddBadStep();
                     }
-                    
+
                     // Do we have enough information to do a gradient line search?
                     if (++ctStreakOfWanderingSteps >= maxStreakOfWanderingSteps)
                     {
@@ -367,7 +367,7 @@ namespace Morpe
                         dEntropy = approach.Entropy.Value - entropyWhenStartedWandering;
                         Chk.LessOrEqual(dEntropy, 0.0, "The change in entropy should be non-positive after wandering.");
                         shrinkStep &= -dEntropy < options.EntropyTol;
-                        
+
                         // Line search the gradient.
                         dEntropy = LineSearch(
                             cancellationToken,
@@ -381,9 +381,9 @@ namespace Morpe
                             gradient,
                             minStepSize: stepSize/4f,
                             training: ref approach);
-                        
+
                         Chk.LessOrEqual(dEntropy, 0.0, "The change in entropy should be non-positive after a line search.");
-                        
+
                         // If line searching produced an insufficient entropy change ...
                         if (-dEntropy < options.EntropyTol)
                         {
@@ -452,7 +452,7 @@ namespace Morpe
 
             Chk.False(training.Classifier.NumPoly > 1 && targetCat != null,
                 "For multiple polynomials, the target category should be null.");
-            
+
             // First we need to calculate the output of each polynomial expression (y-value) for each datum.
             for (int iPoly = 0; iPoly < training.Classifier.NumPoly; iPoly++)
             {
@@ -466,15 +466,15 @@ namespace Morpe
                         // Evaluate polynomial to get y-values.
                         yVec[iPoly][iDatum++] =
                             (float)training.Classifier.EvalPolyFromExpanded(iPoly, data.X[iCat][jDatum]);
-                        
+
                         // Check for cancellation.
                         cancellationToken.ThrowIfCancellationRequested();
                     }
                 }
-                
-                // Sort by y-value 
+
+                // Sort by y-value
                 F.Util.QuickSortIndex(idxVec[iPoly], yVec[iPoly], left: 0, right: data.NumTotal - 1);
-                
+
                 // Check for cancellation.
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -494,7 +494,7 @@ namespace Morpe
                 else if (training.Classifier.NumPoly == 1)
                 {
                     // A 2-category problem.
-                    
+
                     // The 2-category "dual" problem.
                     training.Classifier.Quant[iPoly].Measure(
                         cancellationToken: cancellationToken,
@@ -519,7 +519,7 @@ namespace Morpe
                 }
             }
         }
-        
+
         /// <summary>
         /// Performs a line search along the gradient in an attempt to improve classifier performance.
         /// </summary>
@@ -554,18 +554,18 @@ namespace Morpe
         {
             float step = 1.0f;
             double entropyInput = training.Entropy.Value;
-            
+
             TrainedClassifier attempt = training.Clone();
 
             while (true)
             {
                 // Check for cancellation.
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 // Modify classifier parameters
                 F.Util.AddScaled(step, gradient, attempt.Classifier.Params);
                 F.Util.Scale(attempt.Classifier.Params, (float)(1.0 / F.Util.NormL2(attempt.Classifier.Params)));
-                
+
                 // Build the classifier.
                 BuildClassifier(
                     cancellationToken: cancellationToken,
@@ -577,7 +577,7 @@ namespace Morpe
                     yVec: yVec,
                     idxVec: idxVec,
                     training: attempt);
-                    
+
                 // Measure the fit.
                 (attempt.Accuracy, attempt.Entropy) = MeasureFit(
                     cancellationToken: cancellationToken,
@@ -610,12 +610,12 @@ namespace Morpe
 
             // The change in entropy should be non-positive.
             double output = training.Entropy.Value - entropyInput;
-            
+
             Chk.LessOrEqual(output, 0.0, "The change in entropy was positive.");
 
             return output;
         }
-        
+
         /// <summary>
         /// Measures the accuracy and entropy of the classifier in training.
         /// </summary>
@@ -636,21 +636,21 @@ namespace Morpe
             [NotNull] TrainedClassifier training)
         {
             (double accuracy, double entropy) output = (accuracy: 0.0, entropy: 0.0);
-            
+
             float[] y = new float[training.Classifier.NumPoly];
             double[] p;
-            
+
             int? targetCat = training.Id?.TargetCat;
             byte targetCatByte = (byte)(targetCat ?? 0);
-            
+
             for (int iDatum = 0; iDatum < data.NumTotal; iDatum++)
             {
                 // Check for cancellation.
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 for (int iPoly = 0; iPoly < y.Length; iPoly++)
                     y[iPoly] = yVec[iPoly][iDatum];
-                    
+
                 p = training.Classifier.ClassifyPolynomialOutputs(y);
                 byte cat = catVec[iDatum];
 
@@ -669,7 +669,7 @@ namespace Morpe
                     else
                     {
                         output.entropy += Math.Log(p[1]) * weight;
-                        
+
                         if (p[1] > p[2])
                             output.accuracy += weight;
                     }
@@ -685,7 +685,7 @@ namespace Morpe
                     }
                 }
             }
-            
+
             // Divide by total weight to get the proportion of weight that was correctly classified.
             output.accuracy /= catWeights.TotalWeight;
 

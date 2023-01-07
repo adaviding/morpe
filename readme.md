@@ -21,7 +21,7 @@ This was the code I had when MoRPE was first invented.
 * The [Matlab codebase](src/matlab/readme.md) is here for posterity, but it is filthy and you should try to avoid it.
 
 ## Recommended Usage
-MoRPE should be used in scenarios when the categories are partially overlapping (such that perfect classification performance is impossible).  If the categories are fully separated (such that perfect classification performance is possible), then you should use a different classifier such as a Support Vector Machine (hard margin) or a Decision Tree.
+MoRPE should be used in scenarios when the categories are distributed in a real-numerical feature space with partial overlap (such that perfect classification performance is impossible).
 
 Like all other classifiers, the MoRPE classifier should not be applied blindly to a given data set.  Before MoRPE is applied, the analyst must design a feature space that minimizes category fragmentation (as discussed in the paper).  This means that the analyst must spend time visualizing the data in many possible feature spaces, and carefully select the set of features that appears to minimize fragmentation.  The analyst doesn't need to be perfect, but they should make a decent effort and then MoRPE will handle the rest (as it is designed to do).
 
