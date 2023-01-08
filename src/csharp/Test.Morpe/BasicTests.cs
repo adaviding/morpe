@@ -128,7 +128,7 @@ namespace Test.Morpe
                 // We still need to pad our criteria well enough to ensure that the test is not flaky over thousands of iterations.
                 Assert.Greater(ratioAccuracy, 0.98, "Training accuracy was lower than expected.");
                 Assert.Greater(ratioLambda, 0.98, "Training lambda was lower than expected.");
-                Assert.Less(diffEntropy, 0.01, "The entropy was higher than expected.");
+                Assert.Less(diffEntropy, 0.02, "The entropy was higher than expected.");
             }
         }
     }

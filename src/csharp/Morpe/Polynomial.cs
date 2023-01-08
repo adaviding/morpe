@@ -24,15 +24,15 @@ namespace Morpe
         /// <returns>For each coefficient of the subspace polynomial, this gives the corresponding index of the coefficient
         /// in the fullspace polynomial.</returns>
         [return: NotNull]
-        public static int[] SubspaceToFullspaceCoefficientMapping(
+        public static int[] MapSubspaceToFullspace(
             [NotNull] Polynomial fullPolynomial,
             [NotNull] Polynomial subPolynomial,
             [NotNull] int[] subDims)
         {
-            Chk.Less(subPolynomial.Rank, fullPolynomial.Rank,
-                "The rank of the sub-polynomial should be less than this instance.");
-            Chk.Less(subPolynomial.Rank, fullPolynomial.Rank,
-                "The rank of the subspace polynomial should be less than the fullspace polynomial.");
+            Chk.Less(subPolynomial.NumDims, fullPolynomial.NumDims,
+                "The spatial dimensionality of the subspace polynomial should be less than the fullspace polynomial.");
+            Chk.LessOrEqual(subPolynomial.Rank, fullPolynomial.Rank,
+                "The rank of the subspace polynomial should be less than or equal to the fullspace polynomial.");
             Chk.Equal(subDims.Length, subPolynomial.NumDims,
                 "{0}.{1} != {2}.{3}",
                 nameof(subDims), nameof(subDims.Length),
@@ -70,10 +70,10 @@ namespace Morpe
             // This is the number of coefficients including the 0-th order term.
             int output = I.Util.Pascal(numDims, rank);
 
-            //                0    1    2    3    4    5    6    7    8    9
+            //                 0    1    2    3     4     5     6     7     8     9
             //                            Rank of Tensor
-            //    0            1    1    1    1    1    1    1    1    1    1
-            //    1            1    2    3    4    5    6    7    8    9    10
+            //    0            1    1    1    1     1     1     1     1     1     1
+            //    1            1    2    3    4     5     6     7     8     9     10
             //    2    Ndims   1    3    6    10    15    21    28    36    45    55
             //    3    of      1    4    10   20    35    56    84    120   165   220
             //    4    Space   1    5    15   35    70    126   210   330   495   715
@@ -176,7 +176,7 @@ namespace Morpe
             for(int iRank=0; iRank < rank; iRank++)
             {
                 numPrior = numCurrent;
-                numCurrent = Polynomial.NumCoeff(numDims, iRank + 1);
+                numCurrent = NumCoeff(numDims, iRank + 1);
                 this.NumCoeffsForRank[iRank] = numCurrent;
                 this.NumCoeffsForRankHomo[iRank] = numCurrent - numPrior;
             }
@@ -187,10 +187,6 @@ namespace Morpe
             //    One coefficient (or row) at a time.
             List<int> row = new List<int>(rank);
             row.Add(-1);
-
-            //int[] row = new int[rank];
-            //for(int i=0; i<row.Length; i++)
-            //    row[i] = -1;
 
             //    For each coefficient.
             for(int iCoeff=0; iCoeff < this.NumCoeffs; iCoeff++)
