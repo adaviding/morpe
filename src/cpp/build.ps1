@@ -25,11 +25,15 @@ foreach ($build_type in $build_types)
         Write-Host "[END] $build_type $subproject conan install"
     }
 
+    # Uncomment this to skip the actual build.
+    # continue;
+
     # ------------------------------------------------------------
 
     Write-Host "[BEGIN] $build_type configure"
 
-    cmake -DCMAKE_BUILD_TYPE=$build_type -S "$PSScriptRoot" -B "$build_folder"
+    # We use the Ninja because it is the default generator expected by CLion.
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=$build_type -S "$PSScriptRoot" -B "$build_folder"
 
     Write-Host "[END] $build_type configure"
 

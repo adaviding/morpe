@@ -13,7 +13,7 @@ conan_basic_setup()
 # Get all the *.cpp files
 file(GLOB_RECURSE sourceFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
 
-add_library(morpe STATIC ${sourceFiles} src/morpe.cpp include/morpe.h)
+add_library(morpe STATIC ${sourceFiles} src/morpe/polynomial.cpp include/morpe.h)
 
 # The -fPIC compiler option (gcc), requried for building libraries on linux and unix.
 set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)

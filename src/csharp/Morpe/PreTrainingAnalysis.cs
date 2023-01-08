@@ -31,14 +31,14 @@ namespace Morpe
         {
             Chk.NotNull(data, nameof(data));
             Chk.NotNull(data.State, "{0}.{1}", nameof(data), nameof(data.State));
-            
+
             PreTrainingAnalysis output = new PreTrainingAnalysis();
 
             CategoryWeights weights = CategoryWeights.Measure(
                 numEach: data.NumEach,
                 rule: CategoryWeightingRule.EqualPriors,
                 targetCategory: null);
-            
+
             CategoryWeights[] dualWeights = data.NumCats <= 2
                 ? null
                 : CategoryWeights.MeasureAllDuals(
@@ -56,10 +56,10 @@ namespace Morpe
             output.ParamInit = new float[output.Rank][][];
             for (int i = 0; i < output.Rank; i++)
                 output.ParamInit[i] = Util.NewArrays<float>(numPolys, data.State.Polynomial.NumCoeffsForRank[i]);
-            
+
             int i20 = (int)(0.5 + 0.20 * (double)(data.NumTotal - 1));
             int i80 = (int)(0.5 + 0.80 * (double)(data.NumTotal - 1));
-            
+
             float[] xVec = new float[data.NumTotal];   // A single coordinate for each datum.
             int[] iVec = new int[data.NumTotal];       // An index for each datum.
             byte[] catVec = data.GetCategoryVector();  // The category label for each datum.
@@ -68,10 +68,10 @@ namespace Morpe
             for (int iCoeff = 0; iCoeff < data.State.Polynomial.NumCoeffs; iCoeff++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 // Fill the iVec.  We will be sorting 'x' through this index so that we can measure quantiles.
                 I.Util.FillSeries(iVec);
-                
+
                 // Fill the xVec.
                 int iDatum = 0;
                 for (int iCat = 0; iCat < data.NumCats; iCat++)
@@ -80,21 +80,21 @@ namespace Morpe
                     for (int jDatum = 0; jDatum < catLen; jDatum++)
                         xVec[iDatum++] = data.X[iCat][jDatum][iCoeff];
                 }
-                
+
                 // Sort the iVec.
                 F.Util.QuickSortIndex(iVec, xVec, 0, xVec.Length-1);
-                
+
                 // Measure the spread which gives us the parameter scale.
                 float spread = xVec[iVec[i80]] - xVec[iVec[i20]];
                 output.ParamScale[iCoeff] = 1f / spread;
-                
+
                 // Measure norms for the parameter scale (for each polynomial rank).
                 output.ParamScaleNorm = new float[output.Rank];
                 for (int iRank = 0; iRank < output.Rank; iRank++)
                 {
                     output.ParamScaleNorm[iRank] = (float)Norm(output.ParamScale, data.State.Polynomial.NumCoeffsForRank[iRank]);
                 }
-                
+
                 // Get a univariate classification criteria.
                 for (int iPoly = 0; iPoly < numPolys; iPoly++)
                 {
@@ -108,12 +108,12 @@ namespace Morpe
                             : dualWeights[iPoly]);
                 }
             }
-            
+
             // At this point, we have done everything besides starting parameters.  In order to calculate these, we will
             // use the univariate criteria for each dimension, and weight each parameter explosively by classification accuracy.
             double chanceAcc = 0.5;
             double invDataLength = 1.0 / data.NumTotal;
-            
+
             // For each polynomial coefficient (i.e. each column of the expanded data)
             for (int iCoeff = 0; iCoeff < data.State.Polynomial.NumCoeffs; iCoeff++)
             {
@@ -122,7 +122,7 @@ namespace Morpe
                     UniCrit crit = output.Crits[iPoly, iCoeff];
                     double accAboveChance = Math.Max(0.0, crit.Accuracy - chanceAcc);
                     double weight = accAboveChance / (1.0 - chanceAcc - invDataLength);
-                    double x = weight * output.ParamScale[iCoeff]; 
+                    double x = weight * output.ParamScale[iCoeff];
 
                     if (!crit.TargetUpper)
                     {
@@ -137,7 +137,7 @@ namespace Morpe
                     }
                 }
             }
-            
+
             // A final adjustment to parameter scale.
             for (int iRank = 0; iRank < output.Rank; iRank++)
             {
@@ -149,28 +149,28 @@ namespace Morpe
 
             return output;
         }
-        
+
         /// <summary>
         /// The spatial conditioner.
         /// </summary>
         public SpatialConditioner Conditioner;
-        
+
         /// <summary>
         /// Measures the spatial conditioner based on training data.  Contains statistical information.
         /// </summary>
         public SpatialConditionMeasurer ConditionMeasurer;
-        
+
         /// <summary>
         /// Unidimensional accuracy-maximizing criteria for each conditioned-expanded dimension.
         /// Indexed as [iPoly][iCoeff]
         /// </summary>
         public UniCrit[,] Crits;
-        
+
         /// <summary>
         /// The initial values of the polynomial coefficients.  Indexed as [iRank][iPoly][iCoeff].
         /// </summary>
         public float[][][] ParamInit;
-        
+
         /// <summary>
         /// The scale of each polynomial coefficient.  This is inversely proportional to the spread of the data for
         /// each polynomial coefficient.
@@ -188,7 +188,7 @@ namespace Morpe
         /// The maximum polynomial rank which is covered by this analysis.
         /// </summary>
         public int Rank;
-        
+
         /// <summary>
         /// Creates a deep copy.
         /// </summary>
@@ -196,17 +196,17 @@ namespace Morpe
         public PreTrainingAnalysis Clone()
         {
             PreTrainingAnalysis output = (PreTrainingAnalysis)this.MemberwiseClone();
-            
+
             output.Conditioner = this.Conditioner?.Clone();
             output.ConditionMeasurer = this.ConditionMeasurer?.Clone();
             output.Crits = Util.Clone(this.Crits);
             output.ParamInit = Util.Clone(this.ParamInit);
             output.ParamScale = (float[])this.ParamScale?.Clone();
             output.ParamScaleNorm = (float[])this.ParamScaleNorm?.Clone();
-            
+
             return output;
         }
-        
+
         /// <summary>
         /// Gets a <see cref="PreTrainingAnalysis"/> for the given subspace.
         /// </summary>
@@ -248,23 +248,23 @@ namespace Morpe
                     output.ParamInit[iRank][iPoly] = new float[subPolynomial.NumCoeffsForRank[iRank]];
 
             // Map subspace coefficients to fullspace coefficients.
-            int[] mapSubToFull = Polynomial.SubspaceToFullspaceCoefficientMapping(fullPolynomial, subPolynomial, subDims);
+            int[] mapSubToFull = Polynomial.MapSubspaceToFullspace(fullPolynomial, subPolynomial, subDims);
 
             // For each subspace coefficient
             for (int iCoeff = 0; iCoeff < subPolynomial.NumCoeffs; iCoeff++)
             {
                 int jCoeff = mapSubToFull[iCoeff];
-                
+
                 output.ParamScale[iCoeff] = this.ParamScale[jCoeff];
 
                 for (int iPoly = 0; iPoly < numPoly; iPoly++)
                     output.Crits[iPoly, iCoeff] = this.Crits[iPoly, jCoeff];
-                
+
                 for(int iRank=subPolynomial.Coeffs[iCoeff].Length-1; iRank<output.Rank; iRank++)
                     for (int iPoly = 0; iPoly < numPoly; iPoly++)
                         output.ParamInit[iRank][iPoly][iCoeff] = this.ParamInit[iRank][iPoly][jCoeff];
             }
-            
+
             for(int iRank=0; iRank<output.Rank; iRank++)
                 output.ParamScaleNorm[iRank] = (float)F.Util.NormL2(output.ParamInit[iRank]);
 
@@ -288,7 +288,7 @@ namespace Morpe
             }
 
             output = Math.Sqrt(output);
-            
+
             return output;
         }
     }
