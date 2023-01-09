@@ -6,5 +6,5 @@
 
 namespace morpe { namespace numerics { namespace IX
 {
-    int pascal(int a, int b);
+
 }}}

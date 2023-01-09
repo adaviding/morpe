@@ -166,7 +166,7 @@ namespace morpe
     int32_t polynomial::num_coeffs(int32_t num_dims, int32_t rank)
     {
         // This is the number of coefficients including the 0-th order term.
-        int32_t output = IX::pascal(num_dims, rank);
+        int32_t output = I2::pascal(num_dims, rank);
 
         //                 0    1    2    3     4     5     6     7     8     9
         //                            Rank of Tensor
@@ -191,7 +191,7 @@ namespace morpe
     /// @param rank     #rank      The rank.
     int32_t polynomial::num_coeffs_homo(int32_t num_dims, int32_t rank)
     {
-        int32_t output = IX::pascal(num_dims - 1, rank);
+        int32_t output = I2::pascal(num_dims - 1, rank);
         return output;
     }
 }
