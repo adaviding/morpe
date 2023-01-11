@@ -4,11 +4,15 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using Morpe.Validation;
 
 namespace Morpe.Numerics.D1
 {
     /// <summary>
     /// An object that performs monotonic regression.
+    ///
+    /// This just exposes a single <see cref="Run"/> method, but we use a class to recycle some heap resources (for efficiency) in case the caller wants to
+    /// repeatedly call <see cref="Run"/>.
     /// </summary>
     public class MonotonicRegressor
     {
@@ -106,186 +110,58 @@ namespace Morpe.Numerics.D1
                         yMax: yMax);
                 }
 
-                // Prepare for blending.
-                // The blend factor is a number in the range (0, 1) representing the proportion of weight given to the "increasing" function.
-                double proportionBlendIncreasing = 1.0;
                 if (type == MonotonicRegressionType.Blended)
                 {
-                    // We prepare for blending in 2 ways:
-                    // 1.  Compute the blend factor (proportionBlendIncreasing)
-                    // 2.  Save the non-decreasing values so that later they be blended with the increasing values.
-
-                    // Measure the size of the largest non-decreasing span.
-                    int runLen = 0;
-                    int maxRunLen = 0;
-
-                    this.ynd[0] = output[0];  // Save the non-decreasing values
-                    for (i = 1; i < n; i++)
-                    {
-                        this.ynd[i] = output[i];  // Save the non-decreasing values
-
-                        // Measure the size of the largest non-decreasing span.
-                        if (output[i] != output[i - 1])
-                            runLen = 0;
-                        else
-                            runLen++;
-                        if (runLen > maxRunLen)
-                            maxRunLen = runLen;
-                    }
-
-                    // Compute the blend factor
-                    proportionBlendIncreasing = 1.0 / (1.0 + Math.Pow((double)(4 * maxRunLen) / (double)(n - 1), 3.0));
+                    // Save the non-decreasing values.  We will need them later.
+                    Array.Copy(
+                        sourceArray: output,
+                        destinationArray: this.ynd,
+                        length: output.Length);
                 }
 
                 //    Change a non-decreasing function into a monotonic function.
                 if (type == MonotonicRegressionType.Increasing || type == MonotonicRegressionType.Blended)
                 {
-                    //    Compute min, max, and recompute derivative.
-                    dyMin = output[1] - output[0];
-                    for (i = 1; i < n; i++)
+                    // Update derivative and its minimum value.
+                    dyMin = UpdateDerivativeAndFindMin(y: output, dy: this.dy);
+
+                    // Convert a non-decreasing function to an increasing function (if necessary).
+                    ConvertNonDecreasingToIncreasing(
+                        y: output,
+                        dy: this.dy,
+                        yMean: yMean,
+                        yMin: yMin,
+                        yMax: yMax,
+                        dyMin: dyMin);
+
+                    // Blending?
+                    if (type == MonotonicRegressionType.Blended)
                     {
-                        dyThis = output[i] - output[i - 1];
-                        this.dy[i - 1] = dyThis;
-                        if (dyThis < dyMin)
-                            dyMin = dyThis;
-                    }
+                        // Blend the non-decreasing and increasing functions together.
 
-                    sumBelow = (output[nm1] - output[0]) * 0.00001 / (double)n;
+                        // The proportion of weight given to the increasing function.
+                        double pwIncreasing = CalculateBlendFactor(
+                            nonDecreasingValues: this.ynd,
+                            length: output.Length);
 
-                    //    Only continue if the minimum derivative is zero (or tiny) and if the function is not totally flat.
-                    if (output[nm1] > output[0] && dyMin <= sumBelow)
-                    {
-                        //----------------------------------------------------------------------------------
-                        //    Alter the derivative to be positive everywhere, then integrate the altered derivative.
-                        //----------------------------------------------------------------------------------
+                        Chk.True(pwIncreasing >= 0.0 && pwIncreasing <= 1.0, "{0} = {1}, expected to be in the range [0, 1].", nameof(pwIncreasing), pwIncreasing);
 
-                        //---------------------------
-                        //    Init indexes at a location where [iLow, iMid] straddles the first flat region.
-                        //---------------------------
-                        int iLow, iMid = 0, iHigh;
-                        //    iMid:  The index of a non-flat spot
-                        //    iLow:  The preceding non-flat index before iMid
-                        //    iHigh: The subsequent non-flat index following iMid
-                        iLow = -1;
-                        while (iMid < nm1 && this.dy[iMid] <= sumBelow) iMid++;
-                        //---------------------------
+                        // The proportion of weight given to the non-decreasing function.
+                        double pwNonDecreasing = 1.0 - pwIncreasing;
 
-                        //    Advance from iMid's initial value up through iMid = nm-1.
-                        while (iMid < nm1)
-                        {
-                            //    Advance index of iHigh to the subsequent non-flat index following iMid
-                            iHigh = iMid + 1;
-                            while (iHigh < nm1 && this.dy[iHigh] <= sumBelow) iHigh++;
-
-                            if (iHigh - iMid > 1)
-                            {
-                                if (iMid - iLow > 1)
-                                {
-                                    //---------------------------
-                                    //    Distribute mass to both sides
-                                    //---------------------------
-                                    //    The mass to each index (center index counts twice and receives double mass).
-                                    dyThis = this.dy[iMid] / (double)(iHigh - iLow);
-                                    //    Mass to iMid (double mass)
-                                    this.dy[iMid] = dyThis * 2.0;
-                                    //    Mass below iMid
-                                    for (i = iLow + 1; i < iMid; i++)
-                                        this.dy[i] += dyThis;
-                                    //    Mass above iMid
-                                    for (i = iMid + 1; i < iHigh; i++)
-                                        this.dy[i] += dyThis;
-                                    //---------------------------
-                                }
-                                else
-                                {
-                                    //---------------------------
-                                    //    Distribute mass to high side
-                                    //---------------------------
-                                    //    The mass to each index (center index will get single mass).
-                                    dyThis = this.dy[iMid] / (double)(iHigh - iMid);
-                                    this.dy[iMid] = dyThis;
-                                    //    Mass from iMid to iHigh.
-                                    for (i = iMid + 1; i < iHigh; i++)
-                                        this.dy[i] += dyThis;
-                                    //---------------------------
-                                }
-
-                            }
-                            else if (iMid - iLow > 1)
-                            {
-                                //---------------------------
-                                //    Distribute mass to low side
-                                //---------------------------
-                                //    The mass to each index (center index will get single mass).
-                                dyThis = this.dy[iMid] / (iMid - iLow);
-                                //    Mass to iMid
-                                this.dy[iMid] = dyThis;
-                                //    Mass from iLow to iMid (must be added to mass that may already exist there).
-                                for (i = iLow + 1; i < iMid; i++)
-                                    this.dy[i] += dyThis;
-                                //---------------------------
-                            }
-
-                            //    Advance indexes for next trip
-                            iLow = iMid; // The "subseqent flat region" on the next trip is set to the "preceding flat region" from the last trip.
-                            iMid = iHigh; // We center on last trip's high index.
-                        }
-                        //----------------------------------------------------------------------------------
-
-                        //----------------------------------------------------------------------------------
-                        //    Integrate derivative. Ensure the mean of the original input.
-                        //----------------------------------------------------------------------------------
-                        sumBelow = yMean - output[0];
-                        sumAbove = 0.0;
-                        for (i = 0; i < nm1;)
-                        {
-                            output[i + 1] = output[i] + this.dy[i];
-                            if (output[++i] > yMean)
-                                sumAbove += output[i] - yMean;
-                            else
-                                sumBelow += yMean - output[i];
-                        }
-
-                        //    All values will be shifted by a factor of 0.5*(sBig-sSmall)/(sBig+sSmall)
-                        sTarget = (sumAbove + sumBelow) / 2.0;
-                        sumBelow = sTarget / sumBelow;
-                        sumAbove = sTarget / sumAbove;
-                        //    Ensure that the range is not violated
-                        aCarry = 1.0;
-                        if (sumBelow > 1.0)
-                            aCarry = (yMean - yMin) / (yMean - output[0]) / sumBelow;
-                        else if (sumAbove > 1.0)
-                            aCarry = (yMax - yMean) / (output[nm1] - yMean) / sumAbove;
-                        if (aCarry < 1.0)
-                        {
-                            sumBelow *= aCarry;
-                            sumAbove *= aCarry;
-                        }
-
-                        //    Adjust elements on big and small sides so that mean is preserved.
                         for (i = 0; i < n; i++)
-                            if (output[i] < yMean)
-                                output[i] = (output[i] - yMean) * sumBelow + yMean;
-                            else if (output[i] > yMean)
-                                output[i] = (output[i] - yMean) * sumAbove + yMean;
-                        //----------------------------------------------------------------------------------
+                        {
+                            output[i] = pwIncreasing * output[i] + pwNonDecreasing * this.ynd[i];
+                        }
                     }
                 }
 
-                //    If the output is NaN (which is theoretically possible, but generally should not happen), change it all to be flat (yMean)
+                // Defend against a degenerate case.
                 if (Double.IsNaN(output[0]))
                 {
+                    // In the degenerate case where the output should be flat, we might have some NaN and really it should just be flat.
                     for (i = 0; i < n; i++)
                         output[i] = yMean;
-                }
-                else if (type == MonotonicRegressionType.Blended)
-                {
-                    //    Blend the non-decreasing and monotonic functions according to blendFactor (a 1.0-->0.0 monotonic sigmoid transform of the length of the longest flat portion).
-                    aCarry = 1.0 - proportionBlendIncreasing;
-                    for (i = 0; i < n; i++)
-                    {
-                        output[i] = proportionBlendIncreasing * output[i] + aCarry * this.ynd[i];
-                    }
                 }
             }
 
@@ -379,9 +255,196 @@ namespace Morpe.Numerics.D1
             return output;
         }
 
-        private static void ConvertNonDecreasingToIncreasing()
+        /// <summary>
+        /// This is needed in the context of calculating a <see cref="MonotonicRegressionType.Blended"/> monotonic regression,
+        /// an operation basically blends the outputs of the other operation types.
+        /// * <see cref="MonotonicRegressionType.NonDecreasing"/>
+        /// * <see cref="MonotonicRegressionType.Increasing"/>
+        ///
+        /// This method calculates a "blend factor", or basically a weighting used to mix the two other output types.
+        /// </summary>
+        /// <param name="nonDecreasingValues">The monotonic regression output for <see cref="MonotonicRegressionType.NonDecreasing"/>.</param>
+        /// <param name="length">The actual number of non-decreasing values, since the vector passed in may have extra padding.</param>
+        /// <returns>The proportion of weight to the <see cref="MonotonicRegressionType.Increasing"/> values.</returns>
+        private static double CalculateBlendFactor(
+            [NotNull] double[] nonDecreasingValues,
+            int length)
         {
+            Chk.LessOrEqual(length, nonDecreasingValues.Length, "The length is {0}, but the vector length is {1}.", length, nonDecreasingValues.Length);
 
+            // Prepare for blending.
+            // The blend factor is a number in the range (0, 1) representing the proportion of weight given to the "increasing" function.
+            double output = 1.0;
+
+            // We prepare for blending in 2 ways:
+            // 1.  Compute the blend factor (proportionBlendIncreasing)
+            // 2.  Save the non-decreasing values so that later they be blended with the increasing values.
+
+            // Measure the size of the largest non-decreasing span.
+            int runLen = 0;
+            int maxRunLen = 0;
+
+            for (int i = 1; i < length; i++)
+            {
+                // Measure the size of the largest non-decreasing span.
+                if (nonDecreasingValues[i] != nonDecreasingValues[i - 1])
+                    runLen = 0;
+                else
+                    runLen++;
+                if (runLen > maxRunLen)
+                    maxRunLen = runLen;
+            }
+
+            // Compute the blend factor
+            output = 1.0 / (1.0 + Math.Pow((double)(4 * maxRunLen) / (double)(length - 1), 3.0));
+            return output;
+        }
+
+        /// <summary>
+        /// Modifies the non-decreasing values of 'y' to be strictly increasing, so that each value of 'y' is greater than (not equal to) the prior value.
+        /// </summary>
+        /// <param name="y">The tabulated values of the function 'y'.  On input, we know that these values are non-decreasing, but not necessarily
+        /// increasing.  These values will be modified and will contain the increasing values.</param>
+        /// <param name="dy">The diff of 'y' values.  For all y:  dy[i] = y[i+1] - y[i].  These values will be modified.
+        ///     This vector may have extra length allocated (just for efficient heap utilization).  The extra elements
+        ///     can be ignored.
+        ///
+        ///     On exit, these values will be meaningless:  They are not kept in sync with 'y'.</param>
+        /// <param name="yMean">The intended mean of 'y'.  This value will be preserved.</param>
+        /// <param name="yMin">The intended min of 'y'.  All values of 'y' will be greater than or equal to this value, but no guarantee that 'y' will actually
+        /// have this min.</param>
+        /// <param name="yMax">The intended max of 'y'.  All values of 'y' will be less than or equal to this value, but no guarantee that 'y' will actually
+        /// have this max.</param>
+        /// <param name="dyMin">The minimum value of 'dy' (pre-computed for us).</param>
+        private static void ConvertNonDecreasingToIncreasing(
+            double[] y,
+            double[] dy,
+            double yMean,
+            double yMin,
+            double yMax,
+            double dyMin)
+        {
+            int n = y.Length;
+            int nm1 = n - 1;
+
+            double zeroFloor = (y[nm1] - y[0]) * 0.00001 / (double)n;
+
+            //    Only continue if the minimum derivative is zero (or tiny) and if the function is not totally flat.
+            if (y[nm1] > y[0] && dyMin <= zeroFloor)
+            {
+                //----------------------------------------------------------------------------------
+                // First we alter the derivative to be positive everywhere.
+                //----------------------------------------------------------------------------------
+
+                // Init indexes at a location where [iLow, iMid] straddles the first flat region.
+                int iLow, iMid = 0, iHigh;
+                //    iMid:  The index of a non-flat spot
+                //    iLow:  The preceding non-flat index before iMid
+                //    iHigh: The subsequent non-flat index following iMid
+                iLow = -1;
+                while (iMid < nm1 && dy[iMid] <= zeroFloor) iMid++;
+
+
+                //    Advance from iMid's initial value up through iMid = nm-1.
+                while (iMid < nm1)
+                {
+                    //    Advance index of iHigh to the subsequent non-flat index following iMid
+                    iHigh = iMid + 1;
+                    while (iHigh < nm1 && dy[iHigh] <= zeroFloor) iHigh++;
+
+                    if (iHigh - iMid > 1)
+                    {
+                        if (iMid - iLow > 1)
+                        {
+                            //---------------------------
+                            //    Distribute mass to both sides
+                            //---------------------------
+                            //    The mass to each index (center index counts twice and receives double mass).
+                            double dyThis = dy[iMid] / (iHigh - iLow);
+                            //    Mass to iMid (double mass)
+                            dy[iMid] = dyThis * 2.0;
+                            //    Mass below iMid
+                            for (int i = iLow + 1; i < iMid; i++)
+                                dy[i] += dyThis;
+                            //    Mass above iMid
+                            for (int i = iMid + 1; i < iHigh; i++)
+                                dy[i] += dyThis;
+                            //---------------------------
+                        }
+                        else
+                        {
+                            //---------------------------
+                            //    Distribute mass to high side
+                            //---------------------------
+                            //    The mass to each index (center index will get single mass).
+                            double dyThis = dy[iMid] / (iHigh - iMid);
+                            dy[iMid] = dyThis;
+                            //    Mass from iMid to iHigh.
+                            for (int i = iMid + 1; i < iHigh; i++)
+                                dy[i] += dyThis;
+                            //---------------------------
+                        }
+
+                    }
+                    else if (iMid - iLow > 1)
+                    {
+                        //---------------------------
+                        //    Distribute mass to low side
+                        //---------------------------
+                        //    The mass to each index (center index will get single mass).
+                        double dyThis = dy[iMid] / (iMid - iLow);
+                        //    Mass to iMid
+                        dy[iMid] = dyThis;
+                        //    Mass from iLow to iMid (must be added to mass that may already exist there).
+                        for (int i = iLow + 1; i < iMid; i++)
+                            dy[i] += dyThis;
+                        //---------------------------
+                    }
+
+                    //    Advance indexes for next trip
+                    iLow = iMid; // The "subseqent flat region" on the next trip is set to the "preceding flat region" from the last trip.
+                    iMid = iHigh; // We center on last trip's high index.
+                }
+
+                //----------------------------------------------------------------------------------
+                // Next we integrate the derivative while ensuring the mean of the original input.
+                //----------------------------------------------------------------------------------
+                double energyBelow = yMean - y[0];
+                double energyAbove = 0.0;
+                for (int i = 0; i < nm1;)
+                {
+                    y[i + 1] = y[i] + dy[i];
+                    if (y[++i] > yMean)
+                        energyAbove += y[i] - yMean;
+                    else
+                        energyBelow += yMean - y[i];
+                }
+
+                // Prepare to scale the values above and below differently.
+                double middleEnergy = (energyAbove + energyBelow) / 2.0;
+                double scalarBelow = middleEnergy / energyBelow;
+                double scalarAbove = middleEnergy / energyAbove;
+
+                // Limit the size of the scalars to ensure that the span of y-values is correct.
+                double aCarry = 1.0;
+                if (scalarBelow > 1.0)
+                    aCarry = (yMean - yMin) / (yMean - y[0]) / scalarBelow;
+                else if (scalarAbove > 1.0)
+                    aCarry = (yMax - yMean) / (y[nm1] - yMean) / scalarAbove;
+                if (aCarry < 1.0)
+                {
+                    scalarBelow *= aCarry;
+                    scalarAbove *= aCarry;
+                }
+
+                //    Adjust elements on big and small sides so that mean is preserved.
+                for (int i = 0; i < n; i++)
+                    if (y[i] < yMean)
+                        y[i] = (y[i] - yMean) * scalarBelow + yMean;
+                    else if (y[i] > yMean)
+                        y[i] = (y[i] - yMean) * scalarAbove + yMean;
+                //----------------------------------------------------------------------------------
+            }
         }
 
         /// <summary>
@@ -392,11 +455,16 @@ namespace Morpe.Numerics.D1
         /// * The mean of 'y' will be 'yMean'.
         /// * The min of 'y' shall not be below 'yMin'.
         /// * The max of 'y' shall not be above 'yMax'.
+        ///
+        /// WARNING:  When this function exits, the values of 'dy' will be invalid.
         /// </summary>
         /// <param name="y">The tabulated values of the function 'y'.  These values will be modified.</param>
-        /// <param name="dy">The diff of 'y' values.  For all y:  dy[i] = y[i+1] - y[i].  These values will be modified.
+        /// <param name="dy">The diff of 'y' values.  For all y:  dy[i] = y[i+1] - y[i].  These values are NOT modified.
         ///     This vector may have extra length allocated (just for efficient heap utilization).  The extra elements
-        ///     can be ignored.</param>
+        ///     can be ignored.
+        ///
+        ///     When this function returns, the values of this variable will be invalid.  The values of 'y' have changed
+        ///     but the values of 'dy' have not.</param>
         /// <param name="yMean">The mean of 'y'.  Although we will change the 'y' values, we will ensure that it still has this mean.</param>
         /// <param name="yMin">The minimum allowed value of 'y'.  No value of 'y' will be below this minimum.</param>
         /// <param name="yMax">The maximum allowed value of 'y'.  No value of 'y' will be above this maximum.</param>
@@ -541,6 +609,34 @@ namespace Morpe.Numerics.D1
                     dy[idx + 1] += halfDy; // The difference between y(i+1) and y(i+2) goes down.
                 dy[idx] = 0.0; // The difference between y(i) and y(i+1) goes to zero.
             }
+        }
+
+        /// <summary>
+        /// Updates the values of 'dy' given the current values of 'y' and also finds the minimum of 'dy'.
+        /// </summary>
+        /// <param name="y">The current values of 'y'.</param>
+        /// <param name="dy">A container which holds the output values of 'dy'.
+        ///     This vector may have extra length allocated (just for efficient heap utilization).  The extra elements
+        ///     can be ignored.</param>
+        /// <returns>The minimum value of 'dy'.</returns>
+        private static double UpdateDerivativeAndFindMin(
+            double[] y,
+            double[] dy)
+        {
+            double output = double.MaxValue;
+
+            for (int i = 1; i < y.Length; i++)
+            {
+                double diff = y[i] - y[i - 1];
+                if (diff < output)
+                {
+                    output = diff;
+                }
+
+                dy[i - 1] = diff;
+            }
+
+            return output;
         }
     }
 }

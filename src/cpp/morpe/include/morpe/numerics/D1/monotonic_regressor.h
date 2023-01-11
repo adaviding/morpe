@@ -38,6 +38,10 @@ namespace morpe { namespace numerics { namespace D1
                 _Inout_ std::vector<double>& y,
                 _Inout_ std::vector<double>& dy);
 
+        static double calculate_blend_factor(
+                _In_    const std::vector<double>& non_decreasing_values,
+                _In_    int32_t length);
+
         static void eliminate_decreasing_energy(
                 _Inout_ std::vector<double>& y,
                 _Inout_ std::vector<double>& dy,
@@ -48,6 +52,10 @@ namespace morpe { namespace numerics { namespace D1
         static void repel_decreasing_energy_from_index(
                 _In_    int32_t idx,
                 _Inout_ std::vector<double>& y,
+                _Inout_ std::vector<double>& dy);
+
+        static double update_derivative_and_find_min(
+                _In_    std::vector<double>& y,
                 _Inout_ std::vector<double>& dy);
     };
 }}}

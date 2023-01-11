@@ -71,6 +71,44 @@ namespace morpe { namespace numerics { namespace D1
     }
 
     /// PRIVATE STATIC
+    /// This is needed in the context of calculating a #monotonic_regression_type::blended monotonic regression,
+    /// an operation basically blends the outputs of the other operation types.
+    /// * #monotonic_regression_type::non_decreasing
+    /// * #monotonic_regression_type::increasing
+    ///
+    /// This method calculates a "blend factor", or basically a weighting used to mix the two other output types.
+    /// @param non_decreasing_values The monotonic regression output for #monotonic_regression_type::non_decreasing.
+    /// @param length The actual number of non-decreasing values, since the vector passed in may have extra padding.
+    /// @return The proportion of weight given to the #monotonic_regression_type::increasing values.
+    static double calculate_blend_factor(
+            _In_    const std::vector<double>& non_decreasing_values,
+            _In_    int32_t length)
+    {
+        // The blend factor is a number in the range (0, 1) representing the proportion of weight given to the "increasing" function.
+        double output = 1.0;
+
+        // Measure the size of the largest non-decreasing span.
+        int run_len = 0;
+        int max_run_len = 0;
+
+        for (int i = 1; i < length; i++)
+        {
+            // Measure the size of the largest non-decreasing span.
+            if (non_decreasing_values[i] != non_decreasing_values[i - 1])
+                run_len = 0;
+            else
+                run_len++;
+            if (run_len > max_run_len)
+                max_run_len = run_len;
+        }
+
+        // Compute the blend factor
+        output = 1.0 / (1.0 + std::pow((double)(4 * max_run_len) / (double)(length - 1), 3.0));
+
+        return output;
+    }
+
+    /// PRIVATE STATIC
     /// This is executed after <see cref="AnnihilateDecreasingEnergy"/> to ensure that all decreasing energy has been finally eliminated.  This method is
     /// not the best way to annihilate the decreasing energy, but it does guarantee the following:
     /// * 'y' will be non-decreasing.
@@ -329,44 +367,19 @@ namespace morpe { namespace numerics { namespace D1
                     ymax);
         }
 
-        // The blend factor is a number in the range (0, 1) representing the proportion of weight given to the "increasing" function.
-        double proportionBlendIncreasing = 1.0;
         if (type == monotonic_regression_type::blended)
         {
-            // Measure the size of the largest non-decreasing span.
-            int runLen = 0;
-            int maxRunLen = 0;
-
-            this->ynd[0] = output[0];     // Save the non-decreasing values
-            for (i = 1; i < n; i++)
-            {
-                this->ynd[i] = output[i]; // Save the non-decreasing values
-
-                // Measure the size of the largest non-decreasing span.
-                if (output[i] != output[i - 1])
-                    runLen = 0;
-                else
-                    runLen++;
-                if (runLen > maxRunLen)
-                    maxRunLen = runLen;
-            }
-
-            // Compute the blend factor
-            proportionBlendIncreasing = 1.0 / (1.0 + std::pow((double)(4 * maxRunLen) / (double)(n - 1), 3.0));
+            // Save the non-decreasing values.  We will need them later.
+            this->ynd.assign(output.begin(), output.end());
         }
 
         // Change a non-decreasing function into a monotonic function.
         if (type == monotonic_regression_type::increasing || type == monotonic_regression_type::blended)
         {
             //    Compute min, max, and recompute derivative.
-            dy_min = output[1] - output[0];
-            for (i = 1; i < n; i++)
-            {
-                dy_this = output[i] - output[i - 1];
-                this->dy[i - 1] = dy_this;
-                if (dy_this < dy_min)
-                    dy_min = dy_this;
-            }
+            dy_min = update_derivative_and_find_min(output, this->dy);
+
+            // fixme below this line
 
             sum_small = (output[nm1] - output[0]) * 0.00001 / (double)n;
 
@@ -507,5 +520,32 @@ namespace morpe { namespace numerics { namespace D1
         }
 
         return num_trips_through_loop;
+    }
+
+    /// PRIVATE STATIC
+    /// Updates the values of 'dy' given the current values of 'y' and also finds the minimum of 'dy'.
+    /// @param y The current values of 'y'.
+    /// @param dy A container which holds the output values of 'dy'.
+    ///     This vector may have extra length allocated (just for efficient heap utilization).  The extra elements
+    ///     can be ignored.
+    /// @return The minimum value of 'dy'..
+    double monotonic_regressor::update_derivative_and_find_min(
+            _In_    std::vector<double>& y,
+            _Inout_ std::vector<double>& dy)
+    {
+        double output = std::numeric_limits<double>::max();
+
+        for (int i = 1; i < y.size(); i++)
+        {
+            double diff = y[i] = - y[i-1];
+            if (diff < output)
+            {
+                output = diff;
+            }
+
+            dy[i-1] = diff;
+        }
+
+        return output;
     }
 }}}
