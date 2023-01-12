@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
-
+using Morpe.Numerics;
 using D1 = Morpe.Numerics.D1;
 
 namespace Morpe
@@ -17,7 +17,7 @@ namespace Morpe
         /// The number of quantiles.
         /// </summary>
         public int NumQuantiles { get; private set; }
-        
+
         /// <summary>
         /// The quantized probability.
         /// </summary>
@@ -26,18 +26,18 @@ namespace Morpe
         /// <summary>
         /// The range of P-values that can be delivered by this quantization.
         /// </summary>
-        public D1.Range ProbabilityRange { get; private set; } 
-        
+        public D1.Range ProbabilityRange { get; private set; }
+
         /// <summary>
         /// The average Y-value for data inside each quantile.
         /// </summary>
         public double[] Ymid  { get; private set; }
-        
+
         /// <summary>
         /// The boundaries that separate the quantile.  This array has 1 fewer element than <see cref="Ymid"/>.
         /// </summary>
         public double[] Ysep  { get; private set; }
-        
+
         /// <summary>
         /// Constructs a new container for quantized data.
         /// </summary>
@@ -50,7 +50,7 @@ namespace Morpe
             this.ProbabilityRange = new D1.Range(0.0, 1.0);
             this.Ysep = new double[numQuantiles - 1];
         }
-        
+
         /// <summary>
         /// Constructs a new container for quantized data.
         /// </summary>
@@ -66,7 +66,7 @@ namespace Morpe
             this.ProbabilityRange = probabilityRange.Clone();
             this.Ysep = new double[numQuantiles - 1];
         }
-        
+
         /// <summary>
         /// Creates a deep copy of the quantization data.
         /// </summary>
@@ -77,14 +77,14 @@ namespace Morpe
             output.P = (double[])this.P.Clone();
             output.Ymid = (double[])this.Ymid.Clone();
             output.Ysep = (double[])this.Ysep.Clone();
-            
+
             return output;
         }
         object ICloneable.Clone()
         {
             return this.Clone();
         }
-        
+
         /// <summary>
         /// Begins measuring the quantiles using an intermediate result calculated from training data.  This method is
         /// called repeatedly during classifier optimization.
@@ -108,7 +108,7 @@ namespace Morpe
         {
             //    Target weight per bin.
             double wPerBin = catWeights.TotalWeight / (double)(this.NumQuantiles + 0.01);
-            //    Keep track of the cumulative weight 
+            //    Keep track of the cumulative weight
             double wNextBin=wPerBin;
             double w=0.0,dwThisBin;
             double wLastDatum=0.0, wLastBin=0.0, dwThis=0.0, wcBin=0.0, yBin=0.0;
@@ -119,15 +119,15 @@ namespace Morpe
             {
                 // Check for cancellation.
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 int iiDatum = yIdx[iDatum];
                 byte c = cat[iiDatum];
-                
+
                 //    Update the weight.
                 dwThis = catWeights.Weights[c];
                 wLastDatum = w;
                 w += dwThis;
-                
+
                 //    Is the bin finished?
                 if( w>= wNextBin )
                 {
@@ -190,11 +190,15 @@ namespace Morpe
                     if (c == targetCat) wcBin += dwThis;
                 }
             }
-            
+
             //    Perform monotonic regression.
             if (regressor != null)
-                regressor.Run(cancellationToken, this.P, (double[])this.P.Clone());
-            
+                regressor.Run(
+                    cancellationToken,
+                    type: MonotonicRegressionType.Blended,
+                    input: (double[])this.P.Clone(),
+                    output: this.P);
+
             //    Range limit
             for(iBin=0; iBin<this.P.Length; iBin++)
                 this.P[iBin] = this.ProbabilityRange.Clamp(this.P[iBin]);

@@ -2,11 +2,13 @@
 
 #include "_internal.h"
 #include "sal.h"
+#include "err/stop_error.h"
 
 #include <boost/stacktrace.hpp>
 #include <boost/exception/all.hpp>
 
 #include <ostream>
+#include <stop_token>
 
 namespace morpe { namespace err
 {
@@ -37,6 +39,10 @@ namespace morpe { namespace err
     {
         throw boost::enable_error_info(ex) << boost_trace_info(boost::stacktrace::stacktrace());
     };
+
+    /// Throws a #stop_error if a stop was requested.
+    void throw_if_stopped(
+            _In_ std::stop_token stop_token);
 
     /// Write the stack trace for the given exception.
     /// @param ostream The output stream on which to write.
