@@ -46,10 +46,10 @@ namespace Morpe.Numerics.D1
             // and concurrency would create catastrophic interference.
             lock (this.mutex)
             {
-                if (this.dy == null || this.dy.Length < input.Length)
+                if (this.derivative == null || this.derivative.Length < input.Length)
                 {
-                    this.dy = new double[input.Length];
-                    this.ynd = new double[input.Length];
+                    this.derivative = new double[input.Length];
+                    this.nonDecreasingValues = new double[input.Length];
                 }
 
                 int limitNumTripsThroughLoop = 100 + (int)(30.0 * Math.Log((double)input.Length));
@@ -69,7 +69,7 @@ namespace Morpe.Numerics.D1
                     if (input[i] > yMax) yMax = input[i];
                     yMean += input[i];
                     dyThis = input[i] - input[i - 1];
-                    this.dy[i - 1] = dyThis;
+                    this.derivative[i - 1] = dyThis;
                     if (dyThis < dyMin)
                         dyMin = dyThis;
                     output[i] = input[i];
@@ -99,12 +99,12 @@ namespace Morpe.Numerics.D1
                         dyMinThreshold,
                         limitNumTripsThroughLoop,
                         y: output,
-                        dy: this.dy);
+                        dy: this.derivative);
 
                     // This will ensure that 'output' is non-decreasing, and some other nice properties.
                     EliminateDecreasingEnergy(
                         y: output,
-                        dy: this.dy,
+                        dy: this.derivative,
                         yMean: yMean,
                         yMin: yMin,
                         yMax: yMax);
@@ -115,7 +115,7 @@ namespace Morpe.Numerics.D1
                     // Save the non-decreasing values.  We will need them later.
                     Array.Copy(
                         sourceArray: output,
-                        destinationArray: this.ynd,
+                        destinationArray: this.nonDecreasingValues,
                         length: output.Length);
                 }
 
@@ -123,12 +123,12 @@ namespace Morpe.Numerics.D1
                 if (type == MonotonicRegressionType.Increasing || type == MonotonicRegressionType.Blended)
                 {
                     // Update derivative and its minimum value.
-                    dyMin = UpdateDerivativeAndFindMin(y: output, dy: this.dy);
+                    dyMin = UpdateDerivativeAndFindMin(y: output, dy: this.derivative);
 
                     // Convert a non-decreasing function to an increasing function (if necessary).
                     ConvertNonDecreasingToIncreasing(
                         y: output,
-                        dy: this.dy,
+                        dy: this.derivative,
                         yMean: yMean,
                         yMin: yMin,
                         yMax: yMax,
@@ -141,7 +141,7 @@ namespace Morpe.Numerics.D1
 
                         // The proportion of weight given to the increasing function.
                         double pwIncreasing = CalculateBlendFactor(
-                            nonDecreasingValues: this.ynd,
+                            nonDecreasingValues: this.nonDecreasingValues,
                             length: output.Length);
 
                         Chk.True(pwIncreasing >= 0.0 && pwIncreasing <= 1.0, "{0} = {1}, expected to be in the range [0, 1].", nameof(pwIncreasing), pwIncreasing);
@@ -149,9 +149,10 @@ namespace Morpe.Numerics.D1
                         // The proportion of weight given to the non-decreasing function.
                         double pwNonDecreasing = 1.0 - pwIncreasing;
 
+                        // Blend
                         for (i = 0; i < n; i++)
                         {
-                            output[i] = pwIncreasing * output[i] + pwNonDecreasing * this.ynd[i];
+                            output[i] = pwIncreasing * output[i] + pwNonDecreasing * this.nonDecreasingValues[i];
                         }
                     }
                 }
@@ -169,9 +170,9 @@ namespace Morpe.Numerics.D1
         }
 
         /// <summary>
-        /// Intermediate storage for the derivative and altered derivative.
+        /// Intermediate storage for the derivative of 'y'.  This changes as 'y' changes.
         /// </summary>
-        private double[] dy;
+        private double[] derivative;
 
         /// <summary>
         /// A mutex ensures that the <see cref="Run"/> method cannot run more than once.
@@ -179,9 +180,9 @@ namespace Morpe.Numerics.D1
         private readonly object mutex = new object();
 
         /// <summary>
-        /// Intermediate storage for an intermediate result (the non-decreasing function).
+        /// Intermediate storage for an intermediate result:  The non-decreasing function.
         /// </summary>
-        private double[] ynd;
+        private double[] nonDecreasingValues;
 
         /// <summary>
         /// Repeatedly spread decreasing energy to immediate neighbors until a threshold is met, or until we have gone through the
@@ -304,7 +305,7 @@ namespace Morpe.Numerics.D1
         /// Modifies the non-decreasing values of 'y' to be strictly increasing, so that each value of 'y' is greater than (not equal to) the prior value.
         /// </summary>
         /// <param name="y">The tabulated values of the function 'y'.  On input, we know that these values are non-decreasing, but not necessarily
-        /// increasing.  These values will be modified and will contain the increasing values.</param>
+        /// increasing.  On output, these values will be modified and will contain the increasing values.</param>
         /// <param name="dy">The diff of 'y' values.  For all y:  dy[i] = y[i+1] - y[i].  These values will be modified.
         ///     This vector may have extra length allocated (just for efficient heap utilization).  The extra elements
         ///     can be ignored.
@@ -327,7 +328,7 @@ namespace Morpe.Numerics.D1
             int n = y.Length;
             int nm1 = n - 1;
 
-            double zeroFloor = (y[nm1] - y[0]) * 0.00001 / (double)n;
+            double zeroFloor = (y[nm1] - y[0]) * 0.00001 / n;
 
             //    Only continue if the minimum derivative is zero (or tiny) and if the function is not totally flat.
             if (y[nm1] > y[0] && dyMin <= zeroFloor)
@@ -345,10 +346,10 @@ namespace Morpe.Numerics.D1
                 while (iMid < nm1 && dy[iMid] <= zeroFloor) iMid++;
 
 
-                //    Advance from iMid's initial value up through iMid = nm-1.
+                // Advance from iMid's initial value up through iMid = nm-1.
                 while (iMid < nm1)
                 {
-                    //    Advance index of iHigh to the subsequent non-flat index following iMid
+                    // Advance index of iHigh to the subsequent non-flat index following iMid
                     iHigh = iMid + 1;
                     while (iHigh < nm1 && dy[iHigh] <= zeroFloor) iHigh++;
 
@@ -426,24 +427,23 @@ namespace Morpe.Numerics.D1
                 double scalarAbove = middleEnergy / energyAbove;
 
                 // Limit the size of the scalars to ensure that the span of y-values is correct.
-                double aCarry = 1.0;
+                double carry = 1.0;
                 if (scalarBelow > 1.0)
-                    aCarry = (yMean - yMin) / (yMean - y[0]) / scalarBelow;
+                    carry = (yMean - yMin) / (yMean - y[0]) / scalarBelow;
                 else if (scalarAbove > 1.0)
-                    aCarry = (yMax - yMean) / (y[nm1] - yMean) / scalarAbove;
-                if (aCarry < 1.0)
+                    carry = (yMax - yMean) / (y[nm1] - yMean) / scalarAbove;
+                if (carry < 1.0)
                 {
-                    scalarBelow *= aCarry;
-                    scalarAbove *= aCarry;
+                    scalarBelow *= carry;
+                    scalarAbove *= carry;
                 }
 
-                //    Adjust elements on big and small sides so that mean is preserved.
+                // Adjust elements on big and small sides so that mean is preserved.
                 for (int i = 0; i < n; i++)
                     if (y[i] < yMean)
                         y[i] = (y[i] - yMean) * scalarBelow + yMean;
                     else if (y[i] > yMean)
                         y[i] = (y[i] - yMean) * scalarAbove + yMean;
-                //----------------------------------------------------------------------------------
             }
         }
 
@@ -480,19 +480,19 @@ namespace Morpe.Numerics.D1
 
             // Fix small dy values to be non-negative (so that 'y' is non-decreasing).
             // This operation will bias 'y' in an undesirable way:  The function will increase too rapidly, so there is a "clean-up" procedure after.
-            double aCarry = 0.0;
+            double carry = 0.0;
             for (int i = 0; i < nm1;)
             {
                 if (dy[i++] < 0.0)
-                    aCarry -= dy[i - 1];
+                    carry -= dy[i - 1];
 
                 // Set 'y'
-                y[i] += aCarry;
+                y[i] += carry;
 
                 // Watch out for tiny errors with floating point precision.  Ensure it is really non-decreasing.
                 if (y[i] < y[i - 1])
                 {
-                    aCarry += y[i - 1] - y[i];
+                    carry += y[i - 1] - y[i];
                     y[i] = y[i - 1];
                 }
             }
@@ -509,7 +509,7 @@ namespace Morpe.Numerics.D1
             double rngY = y[nm1] - y0;
 
             // We can multiply each y-value with this scalar to eliminate the range expansion.
-            double scalar = (rngY - aCarry) / rngY;
+            double scalar = (rngY - carry) / rngY;
 
             for (int i = 0; i < n; i++)
             {

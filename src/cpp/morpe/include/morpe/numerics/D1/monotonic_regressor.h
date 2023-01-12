@@ -10,6 +10,9 @@
 namespace morpe { namespace numerics { namespace D1
 {
     /// A class which encapsulates monotonic regression.
+    ///
+    /// This just exposes a single #run method.  The class is needed to recycle heap resources (for efficiency)
+    /// in a scenario where the caller wants to execute #run repeatedly.
     class monotonic_regressor
     {
     public:
@@ -21,14 +24,15 @@ namespace morpe { namespace numerics { namespace D1
 
     private:
 
-        /// Intermediate storage for the derivative and the altered derivative.
-        std::vector<double> dy;
+        /// Intermediate storage for the derivative, and it gets altered as the original unfolds.
+        std::vector<double> derivative;
 
-        /// A mutex that ensures that 'run' cannot be executed concurrently..
+        /// A mutex that ensures that #run cannot be executed concurrently since each execution relies
+        /// on some arrays which are allocated only once for the sake of efficiency.
         std::recursive_mutex mutex;
 
-        /// Intermediate storage for an intermediate result (the non-decreasing function).
-        std::vector<double> ynd;
+        /// Intermediate storage for an intermediate result:  The non-decreasing function.
+        std::vector<double> non_decreasing_values;
 
         static int32_t annihilate_decreasing_energy(
                 _In_    std::stop_token stop_token,
@@ -41,6 +45,14 @@ namespace morpe { namespace numerics { namespace D1
         static double calculate_blend_factor(
                 _In_    const std::vector<double>& non_decreasing_values,
                 _In_    int32_t length);
+
+        static void convert_non_decreasing_to_increasing(
+                _Inout_ std::vector<double>& y,
+                _Inout_ std::vector<double>& dy,
+                _In_    double ymean,
+                _In_    double ymin,
+                _In_    double ymax,
+                _In_    double dymin);
 
         static void eliminate_decreasing_energy(
                 _Inout_ std::vector<double>& y,

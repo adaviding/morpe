@@ -80,7 +80,7 @@ namespace morpe { namespace numerics { namespace D1
     /// @param non_decreasing_values The monotonic regression output for #monotonic_regression_type::non_decreasing.
     /// @param length The actual number of non-decreasing values, since the vector passed in may have extra padding.
     /// @return The proportion of weight given to the #monotonic_regression_type::increasing values.
-    static double calculate_blend_factor(
+    double monotonic_regressor::calculate_blend_factor(
             _In_    const std::vector<double>& non_decreasing_values,
             _In_    int32_t length)
     {
@@ -106,6 +106,149 @@ namespace morpe { namespace numerics { namespace D1
         output = 1.0 / (1.0 + std::pow((double)(4 * max_run_len) / (double)(length - 1), 3.0));
 
         return output;
+    }
+
+    /// PRIVATE STATIC
+    /// Modifies the non-decreasing values of 'y' to be strictly increasing, so that each value of 'y' is greater than (not equal to) the prior value.
+    /// @param y The tabulated values of the function 'y'.  On input, we know that these values are non-decreasing, but not necessarily
+    ///     increasing.  On output, these values will be modified and will contain the increasing values.
+    /// @param dy The diff of 'y' values.  For all y:  dy[i] = y[i+1] - y[i].  These values will be modified.
+    ///     This vector may have extra length allocated (just for efficient heap utilization).  The extra elements
+    ///     can be ignored.
+    ///
+    ///     On exit, these values will be meaningless:  They are not kept in sync with 'y'.
+    /// @param ymean The mean of 'y'.  Although we will change the 'y' values, we will ensure that it still has this mean.
+    /// @param ymin The minimum allowed value of 'y'.  No value of 'y' will be below this minimum.
+    /// @param ymax The maximum allowed value of 'y'.  No value of 'y' will be above this maximum.
+    /// @param dymin The current minimum value of the 'dy' vector.
+    void monotonic_regressor::convert_non_decreasing_to_increasing(
+            _Inout_ std::vector<double>& y,
+            _Inout_ std::vector<double>& dy,
+            _In_    double ymean,
+            _In_    double ymin,
+            _In_    double ymax,
+            _In_    double dymin)
+    {
+        int n = y.size();
+        int nm1 = n-1;
+
+        double zero_floor = (y[nm1] - y[0]) * 0.00001 / n;
+
+        //    Only continue if the minimum derivative is zero (or tiny) and if the function is not totally flat.
+        if (y[nm1] > y[0] && dymin <= zero_floor)
+        {
+            //----------------------------------------------------------------------------------
+            // First we alter the derivative to be positive everywhere.
+            //----------------------------------------------------------------------------------
+
+            // Init indexes at a location where [iLow, iMid] straddles the first flat region.
+            int i_low, i_mid = 0, i_high;
+            //    iMid:  The index of a non-flat spot
+            //    iLow:  The preceding non-flat index before iMid
+            //    iHigh: The subsequent non-flat index following iMid
+            i_low = -1;
+            while (i_mid < nm1 && dy[i_mid] <= zero_floor) i_mid++;
+
+
+            // Advance from iMid's initial value up through iMid = nm-1.
+            while (i_mid < nm1)
+            {
+                // Advance index of iHigh to the subsequent non-flat index following iMid
+                i_high = i_mid + 1;
+                while (i_high < nm1 && dy[i_high] <= zero_floor) i_high++;
+
+                if (i_high - i_mid > 1)
+                {
+                    if (i_mid - i_low > 1)
+                    {
+                        //---------------------------
+                        //    Distribute mass to both sides
+                        //---------------------------
+                        //    The mass to each index (center index counts twice and receives double mass).
+                        double dy_this = dy[i_mid] / (i_high - i_low);
+                        //    Mass to iMid (double mass)
+                        dy[i_mid] = dy_this * 2.0;
+                        //    Mass below iMid
+                        for (int i = i_low + 1; i < i_mid; i++)
+                            dy[i] += dy_this;
+                        //    Mass above iMid
+                        for (int i = i_mid + 1; i < i_high; i++)
+                            dy[i] += dy_this;
+                        //---------------------------
+                    }
+                    else
+                    {
+                        //---------------------------
+                        //    Distribute mass to high side
+                        //---------------------------
+                        //    The mass to each index (center index will get single mass).
+                        double dy_this = dy[i_mid] / (i_high - i_mid);
+                        dy[i_mid] = dy_this;
+                        //    Mass from iMid to iHigh.
+                        for (int i = i_mid + 1; i < i_high; i++)
+                            dy[i] += dy_this;
+                        //---------------------------
+                    }
+
+                }
+                else if (i_mid - i_low > 1)
+                {
+                    //---------------------------
+                    //    Distribute mass to low side
+                    //---------------------------
+                    //    The mass to each index (center index will get single mass).
+                    double dy_this = dy[i_mid] / (i_mid - i_low);
+                    //    Mass to iMid
+                    dy[i_mid] = dy_this;
+                    //    Mass from iLow to iMid (must be added to mass that may already exist there).
+                    for (int i = i_low + 1; i < i_mid; i++)
+                        dy[i] += dy_this;
+                    //---------------------------
+                }
+
+                //    Advance indexes for next trip
+                i_low = i_mid; // The "subseqent flat region" on the next trip is set to the "preceding flat region" from the last trip.
+                i_mid = i_high; // We center on last trip's high index.
+            }
+
+            //----------------------------------------------------------------------------------
+            // Next we integrate the derivative while ensuring the mean of the original input.
+            //----------------------------------------------------------------------------------
+            double energyBelow = ymean - y[0];
+            double energyAbove = 0.0;
+            for (int i = 0; i < nm1;)
+            {
+                y[i + 1] = y[i] + dy[i];
+                if (y[++i] > ymean)
+                    energyAbove += y[i] - ymean;
+                else
+                    energyBelow += ymean - y[i];
+            }
+
+            // Prepare to scale the values above and below differently.
+            double middleEnergy = (energyAbove + energyBelow) / 2.0;
+            double scalarBelow = middleEnergy / energyBelow;
+            double scalarAbove = middleEnergy / energyAbove;
+
+            // Limit the size of the scalars to ensure that the span of y-values is correct.
+            double carry = 1.0;
+            if (scalarBelow > 1.0)
+                carry = (ymean - ymin) / (ymean - y[0]) / scalarBelow;
+            else if (scalarAbove > 1.0)
+                carry = (ymax - ymean) / (y[nm1] - ymean) / scalarAbove;
+            if (carry < 1.0)
+            {
+                scalarBelow *= carry;
+                scalarAbove *= carry;
+            }
+
+            // Adjust elements on big and small sides so that mean is preserved.
+            for (int i = 0; i < n; i++)
+                if (y[i] < ymean)
+                    y[i] = (y[i] - ymean) * scalarBelow + ymean;
+                else if (y[i] > ymean)
+                    y[i] = (y[i] - ymean) * scalarAbove + ymean;
+        }
     }
 
     /// PRIVATE STATIC
@@ -304,11 +447,11 @@ namespace morpe { namespace numerics { namespace D1
         std::unique_lock<std::recursive_mutex> lock(this->mutex);
 
         // Ensure that intermediate memory is allocated.
-        if (this->dy.size() < n)
+        if (this->derivative.size() < n)
         {
             // Allocate a bit extra to reduce unnecessary allocations in the future.
-            this->dy.resize((size_t)(n * 1.2 + 0.5));
-            this->ynd.resize((size_t)(n * 1.2 + 0.5));
+            this->derivative.resize((size_t)(n * 1.2 + 0.5));
+            this->non_decreasing_values.resize((size_t)(n * 1.2 + 0.5));
         }
 
         int i, j;
@@ -325,7 +468,7 @@ namespace morpe { namespace numerics { namespace D1
             if (input[i] > ymax) ymax = input[i];
             ymean += input[i];
             double dy_this = input[i] - input[i - 1];
-            this->dy[i - 1] = dy_this;
+            this->derivative[i - 1] = dy_this;
             if (dy_this < dy_min)
                 dy_min = dy_this;
             output[i] = input[i];
@@ -356,12 +499,12 @@ namespace morpe { namespace numerics { namespace D1
                     dy_min_threshold,
                     limit_num_trips_through_loop,
                     output,
-                    this->dy);
+                    this->derivative);
 
             // This will ensure that 'output' is non-decreasing, and some other nice properties.
             eliminate_decreasing_energy(
                     output,
-                    this->dy,
+                    this->derivative,
                     ymean,
                     ymin,
                     ymax);
@@ -370,153 +513,48 @@ namespace morpe { namespace numerics { namespace D1
         if (type == monotonic_regression_type::blended)
         {
             // Save the non-decreasing values.  We will need them later.
-            this->ynd.assign(output.begin(), output.end());
+            this->non_decreasing_values.assign(output.begin(), output.end());
         }
 
         // Change a non-decreasing function into a monotonic function.
         if (type == monotonic_regression_type::increasing || type == monotonic_regression_type::blended)
         {
             //    Compute min, max, and recompute derivative.
-            dy_min = update_derivative_and_find_min(output, this->dy);
+            dy_min = update_derivative_and_find_min(output, this->derivative);
 
-            // fixme below this line
+            convert_non_decreasing_to_increasing(
+                    output,
+                    this->derivative,
+                    ymean,
+                    ymin,
+                    ymax,
+                    dy_min);
 
-            sum_small = (output[nm1] - output[0]) * 0.00001 / (double)n;
-
-            //    Only continue if the minimum derivative is zero (or tiny) and if the function is not totally flat.
-            if (output[nm1] > output[0] && dy_min <= sum_small)
+            if (type == monotonic_regression_type::blended)
             {
-                //----------------------------------------------------------------------------------
-                //    Alter the derivative to be positive everywhere, then integrate the altered derivative.
-                //----------------------------------------------------------------------------------
+                // Blend the non-decreasing and increasing functions together.
 
-                //---------------------------
-                //    Init indexes at a location where [iLow, iMid] straddles the first flat region.
-                //---------------------------
-                int iLow, iMid = 0, iHigh;
-                //    iMid:  The index of a non-flat spot
-                //    iLow:  The preceding non-flat index before iMid
-                //    iHigh: The subsequent non-flat index following iMid
-                iLow = -1;
-                while (iMid < nm1 && this->dy[iMid] <= sum_small) iMid++;
-                //---------------------------
+                // The proportion of weight given to the increasing function.
+                double pw_increasing = calculate_blend_factor(this->non_decreasing_values, output.size());
+                ThrowIf(pw_increasing < 0.0 || pw_increasing > 1.0);
 
-                //    Advance from iMid's initial value up through iMid = nm-1.
-                while (iMid < nm1)
-                {
-                    //    Advance index of iHigh to the subsequent non-flat index following iMid
-                    iHigh = iMid + 1;
-                    while (iHigh < nm1 && this->dy[iHigh] <= sum_small) iHigh++;
+                // The proportion of weight given to the non-decreasing function.
+                double pw_non_decreasing = 1.0 - pw_increasing;
 
-                    if (iHigh - iMid > 1)
-                    {
-                        if (iMid - iLow > 1)
-                        {
-                            //---------------------------
-                            //    Distribute mass to both sides
-                            //---------------------------
-                            //    The mass to each index (center index counts twice and receives double mass).
-                            dy_this = this->dy[iMid] / (double)(iHigh - iLow);
-                            //    Mass to iMid (double mass)
-                            this->dy[iMid] = dy_this * 2.0;
-                            //    Mass below iMid
-                            for (i = iLow + 1; i < iMid; i++)
-                                this->dy[i] += dy_this;
-                            //    Mass above iMid
-                            for (i = iMid + 1; i < iHigh; i++)
-                                this->dy[i] += dy_this;
-                            //---------------------------
-                        }
-                        else
-                        {
-                            //---------------------------
-                            //    Distribute mass to high side
-                            //---------------------------
-                            //    The mass to each index (center index will get single mass).
-                            dy_this = this->dy[iMid] / (double)(iHigh - iMid);
-                            this->dy[iMid] = dy_this;
-                            //    Mass from iMid to iHigh.
-                            for (i = iMid + 1; i < iHigh; i++)
-                                this->dy[i] += dy_this;
-                            //---------------------------
-                        }
-
-                    }
-                    else if (iMid - iLow > 1)
-                    {
-                        //---------------------------
-                        //    Distribute mass to low side
-                        //---------------------------
-                        //    The mass to each index (center index will get single mass).
-                        dy_this = this->dy[iMid] / (iMid - iLow);
-                        //    Mass to iMid
-                        this->dy[iMid] = dy_this;
-                        //    Mass from iLow to iMid (must be added to mass that may already exist there).
-                        for (i = iLow + 1; i < iMid; i++)
-                            this->dy[i] += dy_this;
-                        //---------------------------
-                    }
-
-                    //    Advance indexes for next trip
-                    iLow = iMid; // The "subseqent flat region" on the next trip is set to the "preceding flat region" from the last trip.
-                    iMid = iHigh; // We center on last trip's high index.
-                }
-                //----------------------------------------------------------------------------------
-
-                //----------------------------------------------------------------------------------
-                //    Integrate derivative. Ensure the mean of the original input.
-                //----------------------------------------------------------------------------------
-                sum_small = ymean - output[0];
-                sum_big = 0.0;
-                for (i = 0; i < nm1;)
-                {
-                    output[i + 1] = output[i] + this->dy[i];
-                    if (output[++i] > ymean)
-                        sum_big += output[i] - ymean;
-                    else
-                        sum_small += ymean - output[i];
-                }
-
-                //    All values will be shifted by a factor of 0.5*(sBig-sSmall)/(sBig+sSmall)
-                sTarget = (sum_big + sum_small) / 2.0;
-                sum_small = sTarget / sum_small;
-                sum_big = sTarget / sum_big;
-                //    Ensure that the range is not violated
-                a_carry = 1.0;
-                if (sum_small > 1.0)
-                    a_carry = (ymean - ymin) / (ymean - output[0]) / sum_small;
-                else if (sum_big > 1.0)
-                    a_carry = (ymax - ymean) / (output[nm1] - ymean) / sum_big;
-                if (a_carry < 1.0)
-                {
-                    sum_small *= a_carry;
-                    sum_big *= a_carry;
-                }
-
-                //    Adjust elements on big and small sides so that mean is preserved.
+                // Blend
                 for (i = 0; i < n; i++)
-                    if (output[i] < ymean)
-                        output[i] = (output[i] - ymean) * sum_small + ymean;
-                    else if (output[i] > ymean)
-                        output[i] = (output[i] - ymean) * sum_big + ymean;
-                //----------------------------------------------------------------------------------
+                {
+                    output[i] = pw_increasing * output[i] + pw_non_decreasing * non_decreasing_values[i];
+                }
             }
         }
 
-        //    If the output is NaN (which is theoretically possible, but generally should not happen), change it all to be flat (yMean)
+        // Defend against a degenerate case.
         if (std::isnan(output[0]))
         {
+            // In the degenerate case where the output should be flat, we might have some NaN and really it should just be flat.
             for (i = 0; i < n; i++)
                 output[i] = ymean;
-        }
-        else if (type == monotonic_regression_type::blended)
-        {
-            //    Blend the non-decreasing and monotonic functions according to blendFactor (a 1.0-->0.0 monotonic sigmoid transform of the length of the longest flat portion).
-            a_carry = 1.0 - proportionBlendIncreasing;
-            for (i = 0; i < n; i++)
-            {
-                output[i] = proportionBlendIncreasing * output[i] + a_carry * ynd[i];
-            }
         }
 
         return num_trips_through_loop;
