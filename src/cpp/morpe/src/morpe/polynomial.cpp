@@ -7,9 +7,10 @@ using namespace morpe::numerics;
 
 namespace morpe
 {
-    /// Constructs the coefficients for a multivariate polynomial having the given rank and spatial dimensionality.
-    /// @param num_dims The number of spatial dimensions, see #num_dims.
-    /// @param rank The rank of the polynomial, see #rank.
+    //---------------------------------------
+    // constructors
+    //---------------------------------------
+
     polynomial::polynomial(int32_t num_dims, int32_t rank)
     {
         ThrowIf(num_dims < 1);
@@ -72,9 +73,10 @@ namespace morpe
         }
     }
 
-    /// Computes 'output' as the polynomial expansion of 'input'.
-    /// @input  The feature vector (not expanded).
-    /// @return The expanded feature vector.
+    //---------------------------------------
+    // public member functions
+    //---------------------------------------
+
     Eigen::ArrayXf polynomial::expand(
             _In_ Eigen::VectorXf &input)
     {
@@ -85,9 +87,6 @@ namespace morpe
     }
 
 
-    /// Computes 'output' as the polynomial expansion of 'input'.
-    /// @input  The feature vector (not expanded).
-    /// @output The expanded feature vector, pre-allocated to be the correct length.
     void polynomial::expand(
             _In_    Eigen::VectorXf& input,
             _Inout_ Eigen::VectorXf& output)
@@ -112,14 +111,10 @@ namespace morpe
         }
     }
 
-    /// STATIC
-    /// Computes a mapping from the subspace polynomial coefficients to the fullspace coefficients.
-    /// @param fullpoly The fullspace polynomial
-    /// @param subpoly  The subspace polynomial
-    /// @param subdims  For each spatial dimension of the subspace polynomial, this gives the index of the
-    /// corresponding spatial dimension in the fullspace polynomial.
-    /// @return For each coefficient of the subspace polynomial, this gives the corresponding index of the coefficient
-    /// in the fullspace polynomial.
+    //---------------------------------------
+    // public static functions
+    //---------------------------------------
+
     std::vector<int32_t> polynomial::map_subspace_to_fullspace(
             _In_ polynomial &fullpoly,
             _In_ polynomial &subpoly,
@@ -158,11 +153,6 @@ namespace morpe
         return output;
     }
 
-    /// STATIC
-    /// Returns the number of inhomogeneous polynomial coefficients for a given dimensionality and rank, including
-    /// all coefficients of lesser rank.  However, it does not include the 0-th order term which MoRPE does not use.
-    /// @param num_dims #num_dims  The spatial dimensionality.
-    /// @param rank     #rank      The rank.
     int32_t polynomial::num_coeffs(int32_t num_dims, int32_t rank)
     {
         // This is the number of coefficients including the 0-th order term.
@@ -183,12 +173,6 @@ namespace morpe
         return output;
     }
 
-    /// STATIC
-    /// Returns the number of homogeneous polynomial coefficients for a given dimensionality and rank.
-    ///
-    /// This does NOT including coefficients of lesser rank (as per the term "homogeneous").
-    /// @param num_dims #num_dims  The spatial dimensionality.
-    /// @param rank     #rank      The rank.
     int32_t polynomial::num_coeffs_homo(int32_t num_dims, int32_t rank)
     {
         int32_t output = I2::pascal(num_dims - 1, rank);

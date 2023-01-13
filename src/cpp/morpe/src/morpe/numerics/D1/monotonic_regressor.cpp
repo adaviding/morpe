@@ -2,22 +2,157 @@
 
 namespace morpe { namespace numerics { namespace D1
 {
-    /// PRIVATE STATIC
-    /// Repeatedly spread decreasing energy to immediate neighbors until a threshold is met, or until we have gone through the
-    /// loop too many times.  Decreasing energy is annihilated by increasing energy.  Thus, it tends to be annihilated by this
-    /// spreading action.
-    ///
-    /// This is the best approach to annihilating the decreasing energy, but this method may not eliminate all of it.  Even so,
-    /// it typically gets us most of the way home.
-    /// @param stop_token If triggered, a #stop_error will be thrown quickly.
-    /// @param dy_min The minimum value of 'dy'.  This value will be updated with each trip through the loop.
-    /// @param dy_min_threshold The loop may exit when 'dy_min' exceeds this value.  This should be a small negative number.
-    /// @param limit_num_trips_through_loop The maximum number of trips through the loop.
-    /// @param y The tabulated values of the function 'y'.
-    /// @param dy The diff of 'y' values.  For all y:  dy[i] = y[i+1] - y[i].
-    ///     This vector may have extra length allocated (just for efficient heap utilization).  The extra elements
-    ///     can be ignored.
-    /// @return The number of trips taken through the loop.
+    // --------------------------------
+    // public functions
+    // --------------------------------
+
+    int32_t monotonic_regressor::run(
+            _In_    std::stop_token stop_token,
+            _In_    monotonic_regression_type type,
+            _In_    std::vector<double>& input,
+            _Inout_ std::vector<double>& output)
+    {
+        ThrowIf(input.size() < 2);
+
+        // Count the number of trips through an inner loop.
+        int32_t num_trips_through_loop = 0;
+        int limit_num_trips_through_loop = 100 + (int)(30.0 * std::log((double)input.size()));
+
+        // Some shortcut varaibles.
+        int n = input.size();
+        int nm1 = input.size() - 1;
+
+        // Ensure the output is the same size as the input.
+        output.resize(n);
+
+        // Prevent concurrent execution.  We are using member variables to store intermediate answers,
+        // and concurrency would create catastrophic interference.
+        std::unique_lock<std::recursive_mutex> lock(this->mutex);
+
+        // Ensure that intermediate memory is allocated.
+        if (this->derivative.size() < n)
+        {
+            // Allocate a bit extra to reduce unnecessary allocations in the future.
+            this->derivative.resize((size_t)(n * 1.2 + 0.5));
+            this->non_decreasing_values.resize((size_t)(n * 1.2 + 0.5));
+        }
+
+        int i, j;
+
+        //    Compute min, max, mean, etc.
+        double ymin = input[0];
+        double ymax = input[0];
+        double ymean = input[0];
+        double dy_min = input[1] - input[0];
+        output[0] = input[0];
+        for (i = 1; i < n; i++)
+        {
+            if (input[i] < ymin) ymin = input[i];
+            if (input[i] > ymax) ymax = input[i];
+            ymean += input[i];
+            double dy_this = input[i] - input[i - 1];
+            this->derivative[i - 1] = dy_this;
+            if (dy_this < dy_min)
+                dy_min = dy_this;
+            output[i] = input[i];
+        }
+
+        ymean /= (double)n;
+        double yrng = ymax - ymin;
+        double dy_min_threshold = -yrng * 0.001;
+
+        if (dy_min >= 0.0)
+        {
+            // Check to see if we are done.
+            if (dy_min > 0.0
+                || dy_min == 0.0 && type == monotonic_regression_type::non_decreasing)
+            {
+                // Let's say it was 0 trips through a loop.
+                return 0;
+            }
+        }
+        else
+        {
+            // Exhaustively annihilate decreasing energy in an unbiased way.  This is the best approach to achieving
+            // a non-decreasing function, but there is no guarantee that it will work.  Even if it doesn't work, it
+            // typically gets us most of the way home.
+            num_trips_through_loop = annihilate_decreasing_energy(
+                    stop_token,
+                    dy_min,
+                    dy_min_threshold,
+                    limit_num_trips_through_loop,
+                    output,
+                    this->derivative);
+
+            // This will ensure that 'output' is non-decreasing, and some other nice properties.
+            eliminate_decreasing_energy(
+                    output,
+                    this->derivative,
+                    ymean,
+                    ymin,
+                    ymax);
+        }
+
+        // Throw if stop requested.
+        err::throw_if_stopped(stop_token);
+
+        if (type == monotonic_regression_type::blended)
+        {
+            // Save the non-decreasing values.  We will need them later.
+            this->non_decreasing_values.assign(output.begin(), output.end());
+        }
+
+        // Change a non-decreasing function into a monotonic function.
+        if (type == monotonic_regression_type::increasing || type == monotonic_regression_type::blended)
+        {
+            //    Compute min, max, and recompute derivative.
+            dy_min = update_derivative_and_find_min(output, this->derivative);
+
+            convert_non_decreasing_to_increasing(
+                    output,
+                    this->derivative,
+                    ymean,
+                    ymin,
+                    ymax,
+                    dy_min);
+
+            // Throw if stop requested.
+            err::throw_if_stopped(stop_token);
+
+            if (type == monotonic_regression_type::blended)
+            {
+                // Blend the non-decreasing and increasing functions together.
+
+                // The proportion of weight given to the increasing function.
+                double pw_increasing = calculate_blend_factor(this->non_decreasing_values, output.size());
+                ThrowIf(pw_increasing < 0.0 || pw_increasing > 1.0);
+
+                // The proportion of weight given to the non-decreasing function.
+                double pw_non_decreasing = 1.0 - pw_increasing;
+
+                // Blend
+                for (i = 0; i < n; i++)
+                {
+                    output[i] = pw_increasing * output[i] + pw_non_decreasing * non_decreasing_values[i];
+                }
+            }
+        }
+
+        // Defend against a degenerate case.
+        if (std::isnan(output[0]))
+        {
+            // In the degenerate case where the output should be flat, we might have some NaN and really it should just be flat.
+            for (i = 0; i < n; i++)
+                output[i] = ymean;
+        }
+
+        return num_trips_through_loop;
+    }
+
+    // --------------------------------
+    // private static functions
+    // --------------------------------
+
     int32_t monotonic_regressor::annihilate_decreasing_energy(
             _In_    std::stop_token stop_token,
             _Inout_ double& dy_min,
@@ -70,16 +205,6 @@ namespace morpe { namespace numerics { namespace D1
         return output;
     }
 
-    /// PRIVATE STATIC
-    /// This is needed in the context of calculating a #monotonic_regression_type::blended monotonic regression,
-    /// an operation basically blends the outputs of the other operation types.
-    /// * #monotonic_regression_type::non_decreasing
-    /// * #monotonic_regression_type::increasing
-    ///
-    /// This method calculates a "blend factor", or basically a weighting used to mix the two other output types.
-    /// @param non_decreasing_values The monotonic regression output for #monotonic_regression_type::non_decreasing.
-    /// @param length The actual number of non-decreasing values, since the vector passed in may have extra padding.
-    /// @return The proportion of weight given to the #monotonic_regression_type::increasing values.
     double monotonic_regressor::calculate_blend_factor(
             _In_    const std::vector<double>& non_decreasing_values,
             _In_    int32_t length)
@@ -108,19 +233,6 @@ namespace morpe { namespace numerics { namespace D1
         return output;
     }
 
-    /// PRIVATE STATIC
-    /// Modifies the non-decreasing values of 'y' to be strictly increasing, so that each value of 'y' is greater than (not equal to) the prior value.
-    /// @param y The tabulated values of the function 'y'.  On input, we know that these values are non-decreasing, but not necessarily
-    ///     increasing.  On output, these values will be modified and will contain the increasing values.
-    /// @param dy The diff of 'y' values.  For all y:  dy[i] = y[i+1] - y[i].  These values will be modified.
-    ///     This vector may have extra length allocated (just for efficient heap utilization).  The extra elements
-    ///     can be ignored.
-    ///
-    ///     On exit, these values will be meaningless:  They are not kept in sync with 'y'.
-    /// @param ymean The mean of 'y'.  Although we will change the 'y' values, we will ensure that it still has this mean.
-    /// @param ymin The minimum allowed value of 'y'.  No value of 'y' will be below this minimum.
-    /// @param ymax The maximum allowed value of 'y'.  No value of 'y' will be above this maximum.
-    /// @param dymin The current minimum value of the 'dy' vector.
     void monotonic_regressor::convert_non_decreasing_to_increasing(
             _Inout_ std::vector<double>& y,
             _Inout_ std::vector<double>& dy,
@@ -251,21 +363,6 @@ namespace morpe { namespace numerics { namespace D1
         }
     }
 
-    /// PRIVATE STATIC
-    /// This is executed after <see cref="AnnihilateDecreasingEnergy"/> to ensure that all decreasing energy has been finally eliminated.  This method is
-    /// not the best way to annihilate the decreasing energy, but it does guarantee the following:
-    /// * 'y' will be non-decreasing.
-    /// * 'dy' will be non-negative.
-    /// * The mean of 'y' will be 'yMean'.
-    /// * The min of 'y' shall not be below 'yMin'.
-    /// * The max of 'y' shall not be above 'yMax'.
-    /// @param y The tabulated values of the function 'y'.
-    /// @param dy The diff of 'y' values.  For all y:  dy[i] = y[i+1] - y[i].
-    ///     This vector may have extra length allocated (just for efficient heap utilization).  The extra elements
-    ///     can be ignored.
-    /// @param ymean The mean of 'y'.  Although we will change the 'y' values, we will ensure that it still has this mean.
-    /// @param ymin The minimum allowed value of 'y'.  No value of 'y' will be below this minimum.
-    /// @param ymax The maximum allowed value of 'y'.  No value of 'y' will be above this maximum.
     void monotonic_regressor::eliminate_decreasing_energy(
             _Inout_ std::vector<double>& y,
             _Inout_ std::vector<double>& dy,
@@ -375,16 +472,6 @@ namespace morpe { namespace numerics { namespace D1
         }
     }
 
-    /// PRIVATE STATIC
-    /// If decreasing energy is present at the given index, then it is moved to the adjacent indices (idx-1, idx+1).
-    /// If either of the adjacent indices has increasing energy, it will annihilate the decreasing energy in equal
-    /// measure.
-    ///
-    /// @idx The zero-based index into 'y' where the adjustment is to be made.
-    /// @param y The tabulated values of the function 'y'.
-    /// @param dy The diff of 'y' values.  For all y:  dy[i] = y[i+1] - y[i].
-    ///     This vector may have extra length allocated (just for efficient heap utilization).  The extra elements
-    ///     can be ignored.
     void monotonic_regressor::repel_decreasing_energy_from_index(
             _In_    int32_t idx,
             _Inout_ std::vector<double>& y,
@@ -412,161 +499,6 @@ namespace morpe { namespace numerics { namespace D1
         }
     }
 
-    /// Performs a monotonic regression of a tabulated function.  This method calculates a monotonic function that is approximately equal
-    /// to the tabulated function provided.
-    /// @param stop_token If triggered, a #stop_error will be thrown quickly.
-    /// @param type The type of monotonic regression.
-    /// @param input The tabulated function.
-    /// @param output The monotonic function.  This should be supplied as a vector of length identical to input.
-    /// The following will be guaranteed:
-    ///     mean(output) == mean(input)
-    ///     min(output)  >= min(input)
-    ///     max(output)  <= max(input)
-    /// @return The number of trips through an inner loop.
-    int32_t monotonic_regressor::run(
-            _In_    std::stop_token stop_token,
-            _In_    monotonic_regression_type type,
-            _In_    std::vector<double>& input,
-            _Inout_ std::vector<double>& output)
-    {
-        ThrowIf(input.size() < 2);
-
-        // Count the number of trips through an inner loop.
-        int32_t num_trips_through_loop = 0;
-        int limit_num_trips_through_loop = 100 + (int)(30.0 * std::log((double)input.size()));
-
-        // Some shortcut varaibles.
-        int n = input.size();
-        int nm1 = input.size() - 1;
-
-        // Ensure the output is the same size as the input.
-        output.resize(n);
-
-        // Prevent concurrent execution.  We are using member variables to store intermediate answers,
-        // and concurrency would create catastrophic interference.
-        std::unique_lock<std::recursive_mutex> lock(this->mutex);
-
-        // Ensure that intermediate memory is allocated.
-        if (this->derivative.size() < n)
-        {
-            // Allocate a bit extra to reduce unnecessary allocations in the future.
-            this->derivative.resize((size_t)(n * 1.2 + 0.5));
-            this->non_decreasing_values.resize((size_t)(n * 1.2 + 0.5));
-        }
-
-        int i, j;
-
-        //    Compute min, max, mean, etc.
-        double ymin = input[0];
-        double ymax = input[0];
-        double ymean = input[0];
-        double dy_min = input[1] - input[0];
-        output[0] = input[0];
-        for (i = 1; i < n; i++)
-        {
-            if (input[i] < ymin) ymin = input[i];
-            if (input[i] > ymax) ymax = input[i];
-            ymean += input[i];
-            double dy_this = input[i] - input[i - 1];
-            this->derivative[i - 1] = dy_this;
-            if (dy_this < dy_min)
-                dy_min = dy_this;
-            output[i] = input[i];
-        }
-
-        ymean /= (double)n;
-        double yrng = ymax - ymin;
-        double dy_min_threshold = -yrng * 0.001;
-
-        if (dy_min >= 0.0)
-        {
-            // Check to see if we are done.
-            if (dy_min > 0.0
-                || dy_min == 0.0 && type == monotonic_regression_type::non_decreasing)
-            {
-                // Let's say it was 0 trips through a loop.
-                return 0;
-            }
-        }
-        else
-        {
-            // Exhaustively annihilate decreasing energy in an unbiased way.  This is the best approach to achieving
-            // a non-decreasing function, but there is no guarantee that it will work.  Even if it doesn't work, it
-            // typically gets us most of the way home.
-            num_trips_through_loop = annihilate_decreasing_energy(
-                    stop_token,
-                    dy_min,
-                    dy_min_threshold,
-                    limit_num_trips_through_loop,
-                    output,
-                    this->derivative);
-
-            // This will ensure that 'output' is non-decreasing, and some other nice properties.
-            eliminate_decreasing_energy(
-                    output,
-                    this->derivative,
-                    ymean,
-                    ymin,
-                    ymax);
-        }
-
-        if (type == monotonic_regression_type::blended)
-        {
-            // Save the non-decreasing values.  We will need them later.
-            this->non_decreasing_values.assign(output.begin(), output.end());
-        }
-
-        // Change a non-decreasing function into a monotonic function.
-        if (type == monotonic_regression_type::increasing || type == monotonic_regression_type::blended)
-        {
-            //    Compute min, max, and recompute derivative.
-            dy_min = update_derivative_and_find_min(output, this->derivative);
-
-            convert_non_decreasing_to_increasing(
-                    output,
-                    this->derivative,
-                    ymean,
-                    ymin,
-                    ymax,
-                    dy_min);
-
-            if (type == monotonic_regression_type::blended)
-            {
-                // Blend the non-decreasing and increasing functions together.
-
-                // The proportion of weight given to the increasing function.
-                double pw_increasing = calculate_blend_factor(this->non_decreasing_values, output.size());
-                ThrowIf(pw_increasing < 0.0 || pw_increasing > 1.0);
-
-                // The proportion of weight given to the non-decreasing function.
-                double pw_non_decreasing = 1.0 - pw_increasing;
-
-                // Blend
-                for (i = 0; i < n; i++)
-                {
-                    output[i] = pw_increasing * output[i] + pw_non_decreasing * non_decreasing_values[i];
-                }
-            }
-        }
-
-        // Defend against a degenerate case.
-        if (std::isnan(output[0]))
-        {
-            // In the degenerate case where the output should be flat, we might have some NaN and really it should just be flat.
-            for (i = 0; i < n; i++)
-                output[i] = ymean;
-        }
-
-        return num_trips_through_loop;
-    }
-
-    /// PRIVATE STATIC
-    /// Updates the values of 'dy' given the current values of 'y' and also finds the minimum of 'dy'.
-    /// @param y The current values of 'y'.
-    /// @param dy A container which holds the output values of 'dy'.
-    ///     This vector may have extra length allocated (just for efficient heap utilization).  The extra elements
-    ///     can be ignored.
-    /// @return The minimum value of 'dy'..
     double monotonic_regressor::update_derivative_and_find_min(
             _In_    std::vector<double>& y,
             _Inout_ std::vector<double>& dy)

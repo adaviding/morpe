@@ -41,6 +41,7 @@ namespace morpe { namespace err
     };
 
     /// Throws a #stop_error if a stop was requested.
+    /// @param stop_token The token which can be used to determine if a stop was requested.
     void throw_if_stopped(
             _In_ std::stop_token stop_token);
 

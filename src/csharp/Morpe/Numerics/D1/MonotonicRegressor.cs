@@ -110,6 +110,9 @@ namespace Morpe.Numerics.D1
                         yMax: yMax);
                 }
 
+                // Throw if cancellation requested
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (type == MonotonicRegressionType.Blended)
                 {
                     // Save the non-decreasing values.  We will need them later.
@@ -124,6 +127,9 @@ namespace Morpe.Numerics.D1
                 {
                     // Update derivative and its minimum value.
                     dyMin = UpdateDerivativeAndFindMin(y: output, dy: this.derivative);
+
+                    // Throw if cancellation requested
+                    cancellationToken.ThrowIfCancellationRequested();
 
                     // Convert a non-decreasing function to an increasing function (if necessary).
                     ConvertNonDecreasingToIncreasing(
