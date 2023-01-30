@@ -30,6 +30,4 @@ MoRPE is intended for scenarios where you have at least a few hundred samples pe
 MoRPE approximates the optimal classifier when category fragmentation is low, and when irrelevant dimensions are removed from the feature space (as discussed in the paper).
 
 ## License
-The owner, licensor, and copyright holder is Almon David Ing, PhD.
-
-The [license](license.md) is Apache 2.0.  I am happy to release this under other licenses if that makes your life easier ... just ask.
+The [MIT License](license.md).
