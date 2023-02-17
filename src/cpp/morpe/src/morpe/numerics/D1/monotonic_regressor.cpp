@@ -9,7 +9,7 @@ namespace morpe { namespace numerics { namespace D1
     int32_t monotonic_regressor::run(
             _In_    std::stop_token stop_token,
             _In_    monotonic_regression_type type,
-            _In_    std::vector<double>& input,
+            _In_    const std::vector<double>& input,
             _Inout_ std::vector<double>& output)
     {
         ThrowIf(input.size() < 2);
@@ -20,7 +20,6 @@ namespace morpe { namespace numerics { namespace D1
 
         // Some shortcut varaibles.
         int n = input.size();
-        int nm1 = input.size() - 1;
 
         // Ensure the output is the same size as the input.
         output.resize(n);
