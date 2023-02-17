@@ -16,9 +16,7 @@ Here are a couple implementations which are roughly equivalent in terms of the o
 * The [C++ codebase](src/cpp) is just getting started.
 
 ### The original project is unsupported
-This was the code I had when MoRPE was first invented.
-
-* The [Matlab codebase](src/matlab/do_not_use) is here for posterity, but it is filthy and you should try to avoid it.
+The [original implementation](src/matlab/do_not_use) is filthy and it should not be used.
 
 ## Recommended Usage
 MoRPE should be used in scenarios when the categories are distributed in a real-numerical feature space with partial overlap (such that perfect classification performance is impossible).
