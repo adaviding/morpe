@@ -30,7 +30,7 @@ namespace morpe { namespace numerics { namespace D1
         int32_t run(
                 _In_    std::stop_token stop_token,
                 _In_    monotonic_regression_type type,
-                _In_    std::vector<double>& input,
+                _In_    const std::vector<double>& input,
                 _Inout_ std::vector<double>& output);
 
     private:

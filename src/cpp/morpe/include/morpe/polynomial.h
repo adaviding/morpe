@@ -63,13 +63,13 @@ namespace morpe
         /// @input  The feature vector (not expanded).
         /// @return The expanded feature vector.
         Eigen::ArrayXf expand(
-                _In_ Eigen::VectorXf& input);
+                _In_ const Eigen::VectorXf& input);
 
         /// Computes 'output' as the polynomial expansion of 'input'.
         /// @input  The feature vector (not expanded).
         /// @output The expanded feature vector, pre-allocated to be the correct length.
         void expand(
-                _In_    Eigen::VectorXf& input,
+                _In_    const Eigen::VectorXf& input,
                 _Inout_ Eigen::VectorXf& output);
 
         //---------------------------------------
@@ -84,9 +84,9 @@ namespace morpe
         /// @return For each coefficient of the subspace polynomial, this gives the corresponding index of the coefficient
         /// in the fullspace polynomial.
         static std::vector<int32_t> map_subspace_to_fullspace(
-                _In_ polynomial& fullPoly,
-                _In_ polynomial& subPoly,
-                _In_ std::vector<int32_t> subdims);
+                _In_ const polynomial& fullpoly,
+                _In_ const polynomial& subpoly,
+                _In_ const std::vector<int32_t>& subdims);
 
         /// Returns the number of inhomogeneous polynomial coefficients for a given dimensionality and rank, including
         /// all coefficients of lesser rank.  However, it does not include the 0-th order term which MoRPE does not use.

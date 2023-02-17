@@ -78,7 +78,7 @@ namespace morpe
     //---------------------------------------
 
     Eigen::ArrayXf polynomial::expand(
-            _In_ Eigen::VectorXf &input)
+            _In_ const Eigen::VectorXf &input)
     {
         Eigen::VectorXf output(this->coeffs.size());
         output.resize(this->coeffs.size());
@@ -88,7 +88,7 @@ namespace morpe
 
 
     void polynomial::expand(
-            _In_    Eigen::VectorXf& input,
+            _In_    const Eigen::VectorXf& input,
             _Inout_ Eigen::VectorXf& output)
     {
         ChkTrue(this->num_dims == input.size());
@@ -116,9 +116,9 @@ namespace morpe
     //---------------------------------------
 
     std::vector<int32_t> polynomial::map_subspace_to_fullspace(
-            _In_ polynomial &fullpoly,
-            _In_ polynomial &subpoly,
-            _In_ std::vector<int32_t> subdims)
+            _In_ const polynomial& fullpoly,
+            _In_ const polynomial& subpoly,
+            _In_ const std::vector<int32_t>& subdims)
     {
         ChkTrue(subpoly.num_dims < fullpoly.num_dims)
         ChkTrue(subpoly.rank <= fullpoly.rank);
@@ -134,7 +134,7 @@ namespace morpe
         int j_coeff = 0;
         for (int i_coeff = 0; i_coeff < output.size(); i_coeff++)
         {
-            std::vector<int32_t>* sub = &subpoly.coeffs[i_coeff];
+            const std::vector<int32_t>* sub = &subpoly.coeffs[i_coeff];
             mapping.resize(sub->size());
 
             for (int i_rank = 0; i_rank < sub->size(); i_rank++)

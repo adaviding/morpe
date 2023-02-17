@@ -12,13 +12,13 @@ This project moves very slowly because I have very little time to work on it.
 ### Projects that will be supported moving forward
 Here are a couple implementations which are roughly equivalent in terms of the outer API and inner numerical properties, but computational performance may differ. 
 
-* The [C# codebase](src/csharp/readme.md) is usable.
-* The [C++ codebase](src/cpp/readme.md) is just getting started.
+* The [C# codebase](src/csharp) is usable.
+* The [C++ codebase](src/cpp) is just getting started.
 
 ### The original project is unsupported
 This was the code I had when MoRPE was first invented.
 
-* The [Matlab codebase](src/matlab/readme.md) is here for posterity, but it is filthy and you should try to avoid it.
+* The [Matlab codebase](src/matlab/do_not_use) is here for posterity, but it is filthy and you should try to avoid it.
 
 ## Recommended Usage
 MoRPE should be used in scenarios when the categories are distributed in a real-numerical feature space with partial overlap (such that perfect classification performance is impossible).
